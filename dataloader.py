@@ -38,8 +38,6 @@ class ImageFolder(data.Dataset):
             mask = mask.crop((150,70,574,438))
             mask = np.array(mask)
             mask = label_mask(mask)
-            plt.imshow(mask)
-            plt.show()
             Transform = []
             Transform.append(T.ToTensor())
             Transform = T.Compose(Transform)

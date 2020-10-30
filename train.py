@@ -12,6 +12,7 @@ from eval import *
 from PIL import Image
 import imageio
 from mean_iou_evaluate import *
+from loss_func import *
 ## need to remove before submit
 import ipdb
 from tqdm import tqdm
@@ -26,13 +27,16 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
     elif config.which_model == 2:
         net = DLCVHW2_2_Improve_Net(2)
         print("Improve model")
+    elif config.which_model == 3:
+        net = FCN8s(2)
+        print("Model FCN8S")
     elif config.which_model == 0:
         print("No assign which model!")
     net = net.cuda()
 
     best_score = config.best_score
-    class_weight = torch.FloatTensor([0.2,1.0]).cuda()
-    CRITERION = nn.CrossEntropyLoss(weight = class_weight)
+    #class_weight = torch.FloatTensor([0.2,1.0]).cuda()
+    #CRITERION = nn.CrossEntropyLoss(weight = class_weight)
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     for epoch in range(EPOCH):
         train_loss = 0
@@ -49,7 +53,7 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
             mask = mask.cuda()
             output = net(image)
             mask = torch.squeeze(mask)
-            loss = CRITERION(output, mask)
+            loss = FocalLoss(gamma=0)(output, mask)
             OPTIMIZER.zero_grad() 
             loss.backward()
             OPTIMIZER.step()
