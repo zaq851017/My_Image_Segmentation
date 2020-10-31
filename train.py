@@ -7,7 +7,6 @@ import torch.optim as optim
 import torch.nn as nn
 from torchvision import transforms as T
 from dataloader import get_loader
-from network import *
 from eval import *
 from PIL import Image
 import imageio
@@ -18,25 +17,45 @@ import ipdb
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
-
+##net work
+from FCN32s import *
+from HDC import *
+from FCN8s import *
+from Pspnet import *
+from GCN import *
+import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
     print(config)
     if config.which_model == 1:
-        net = DLCVHW2_2_Basic_Net(2)
+        net = FCN32s(2)
         print("Base model FCN32S")
     elif config.which_model == 2:
-        net = DLCVHW2_2_Improve_Net(2)
-        print("Improve model")
+        net = HDC(2)
+        print("HDC model")
     elif config.which_model == 3:
         net = FCN8s(2)
         print("Model FCN8S")
+    elif config.which_model == 4:
+        net = GCN(2)
+        print("GCN net")
+    elif config.which_model == 5:
+        net = smp.Unet('vgg16', encoder_weights='imagenet', classes=2)
+        print("Unet Vgg16")
+    elif config.which_model == 6:
+        net = smp.PSPNet('vgg16', encoder_weights='imagenet', classes=2)
+        print("PSPNet Vgg16")
     elif config.which_model == 0:
         print("No assign which model!")
+
+    if config.pretrain_model != "":
+        net.load_state_dict(torch.load(config.pretrain_model))
+        print("pretrain model loaded!")
     net = net.cuda()
 
     best_score = config.best_score
-    #class_weight = torch.FloatTensor([0.2,1.0]).cuda()
+    #class_weight = torch.FloatTensor([0.2,4.0]).cuda()
     #CRITERION = nn.CrossEntropyLoss(weight = class_weight)
+    CRITERION = nn.CrossEntropyLoss()
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     for epoch in range(EPOCH):
         train_loss = 0
@@ -53,7 +72,7 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
             mask = mask.cuda()
             output = net(image)
             mask = torch.squeeze(mask)
-            loss = FocalLoss(gamma=0)(output, mask)
+            loss = CRITERION(output, mask)
             OPTIMIZER.zero_grad() 
             loss.backward()
             OPTIMIZER.step()
@@ -129,7 +148,7 @@ def main(config):
     train_loader = get_loader(image_path = "label_data/train_dataset/",
                             batch_size = BATCH_SIZE,
                             mode = 'train',
-                            augmentation_prob = 0.4,
+                            augmentation_prob = 0.,
                             shffule_yn = True)
     valid_loader = get_loader(image_path = "label_data/test_dataset/",
                             batch_size = 1,
@@ -150,8 +169,8 @@ if __name__ == "__main__":
     parser.add_argument('--which_model', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=5)
     parser.add_argument('--epoch', type=int, default=50)
-    parser.add_argument('--learning_rate', type=int, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--save_model_path', type=str, default="./models/")
-    parser.add_argument('--best_score', type=float, default=1.0)
+    parser.add_argument('--best_score', type=float, default=0.95)
     config = parser.parse_args()
     main(config)
