@@ -83,4 +83,4 @@ class FCN8s(nn.Module):
         score_pool3 = self.score_pool3(0.0001 * pool3)
         upscore8 = self.upscore8(score_pool3[:, :, 9: (9 + upscore_pool4.size()[2]), 9: (9 + upscore_pool4.size()[3])]
                                  + upscore_pool4)
-        return upscore8[:, :, 31: (31 + x_size[2]), 31: (31 + x_size[3])].contiguous()
+        return (upscore8[:, :, 31: (31 + x_size[2]), 31: (31 + x_size[3])].contiguous())

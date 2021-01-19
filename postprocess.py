@@ -39,15 +39,15 @@ def frame2video(path):
     videoWriter.release()
 
 def test(config, test_loader):
-    print(config)
+    threshold = config.threshold
     if config.which_model == 1:
-        net = FCN32s(2)
+        net = FCN32s(1)
         print("FCN32s load!")
     elif config.which_model == 2:
-        net = HDC(2)
+        net = HDC(1)
         print("HDC load")
     elif config.which_model == 3:
-        net = FCN8s(2)
+        net = FCN8s(1)
         print("FCN 8S load")
     net.load_state_dict(torch.load(config.model_path))
     net = net.cuda()
@@ -55,42 +55,46 @@ def test(config, test_loader):
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)
     with torch.no_grad():
-        
         tStart = time.time()
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
-            SR = torch.argmax(output, dim = 1).squeeze().cpu().data.numpy().astype("uint8")
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy().astype("uint8")
             contours, hierarchy = cv2.findContours(SR, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             maege_image = np.zeros( (crop_image.shape[0],crop_image.shape[1]*2,3),dtype=np.uint8)
-            dir_file = file_name[0][:-13]
-            write_path = os.path.join(os.path.join(config.output_path, dir_file.split("_")[0]))
-            write_path = os.path.join(os.path.join(write_path, dir_file))
+            temp = [config.output_path] + file_name[0].split("/")[2:-2]
+            write_path = "/".join(temp)
+            img_name = file_name[0].split("/")[-1]
             if not os.path.isdir(write_path):
                 os.makedirs(write_path+"/merge")
                 os.makedirs(write_path+"/origin")
                 os.makedirs(write_path+"/forfilm")
             if contours ==[]:
                 maege_image = np.concatenate( (origin_crop_image, crop_image), axis = 1)
-                imageio.imwrite(os.path.join(write_path+"/merge", file_name[0]), maege_image)
-                imageio.imwrite(os.path.join(write_path+"/origin", file_name[0]), origin_crop_image)
-                imageio.imwrite(os.path.join(write_path+"/forfilm", file_name[0]), crop_image)
+                imageio.imwrite(os.path.join(write_path+"/merge", img_name), maege_image)
+                imageio.imwrite(os.path.join(write_path+"/origin", img_name), origin_crop_image)
+                imageio.imwrite(os.path.join(write_path+"/forfilm", img_name), crop_image)
             else:
                 cv2.drawContours(np.uint8(crop_image), contours, -1, (0,255,0), 3)
                 maege_image = np.concatenate( (origin_crop_image, np.uint8(crop_image)), axis = 1)
-                imageio.imwrite(os.path.join(write_path+"/merge", file_name[0]), maege_image)
-                imageio.imwrite(os.path.join(write_path+"/origin", file_name[0]), origin_crop_image)
-                imageio.imwrite(os.path.join(write_path+"/forfilm", file_name[0]), crop_image)
+                imageio.imwrite(os.path.join(write_path+"/merge", img_name), maege_image)
+                imageio.imwrite(os.path.join(write_path+"/origin", img_name), origin_crop_image)
+                imageio.imwrite(os.path.join(write_path+"/forfilm", img_name), crop_image)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
-        
         for dir_files in (LISTDIR(config.output_path)):
             full_path = os.path.join(config.output_path, dir_files)
             for num_files in tqdm(LISTDIR(full_path)):
                 full_path_2 = os.path.join(full_path, num_files+"/merge")
                 frame2video(full_path_2)
+                if config.keep_image == 0:
+                    full_path_3 = os.path.join(full_path, num_files+"/origin")
+                    full_path_4 = os.path.join(full_path, num_files+"/forfilm")
+                    os.system("rm -r "+full_path_3)
+                    os.system("rm -r "+full_path_4)
+                
 def main(config):
     # parameter setting
     test_loader = get_loader(image_path = config.input_path,
@@ -104,7 +108,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, default="")
     parser.add_argument('--which_model', type=int, default=3)
-    parser.add_argument('--output_path', type=str, default="./all_test_results/")
-    parser.add_argument('--input_path', type=str, default="./all_test_dataset/")
+    parser.add_argument('--output_path', type=str, default="")
+    parser.add_argument('--input_path', type=str, default="")
+    parser.add_argument('--threshold', type=float, default=0.2)
+    parser.add_argument('--keep_image', type= int, default=1)
     config = parser.parse_args()
     main(config)
