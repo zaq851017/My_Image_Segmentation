@@ -19,6 +19,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 import time
+from matplotlib import cm as CM
 ##net work
 from FCN32s import *
 from HDC import *
@@ -61,27 +62,21 @@ def test(config, test_loader):
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
-            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy().astype("uint8")
-            contours, hierarchy = cv2.findContours(SR, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            maege_image = np.zeros( (crop_image.shape[0],crop_image.shape[1]*2,3),dtype=np.uint8)
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            heatmap = np.uint8(255 * SR)
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+            heat_img = heatmap*0.9+origin_crop_image
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
             if not os.path.isdir(write_path):
                 os.makedirs(write_path+"/merge")
-                os.makedirs(write_path+"/origin")
+                os.makedirs(write_path+"/original")
                 os.makedirs(write_path+"/forfilm")
-            if contours ==[]:
-                maege_image = np.concatenate( (origin_crop_image, crop_image), axis = 1)
-                imageio.imwrite(os.path.join(write_path+"/merge", img_name), maege_image)
-                imageio.imwrite(os.path.join(write_path+"/origin", img_name), origin_crop_image)
-                imageio.imwrite(os.path.join(write_path+"/forfilm", img_name), crop_image)
-            else:
-                cv2.drawContours(np.uint8(crop_image), contours, -1, (0,255,0), 3)
-                maege_image = np.concatenate( (origin_crop_image, np.uint8(crop_image)), axis = 1)
-                imageio.imwrite(os.path.join(write_path+"/merge", img_name), maege_image)
-                imageio.imwrite(os.path.join(write_path+"/origin", img_name), origin_crop_image)
-                imageio.imwrite(os.path.join(write_path+"/forfilm", img_name), crop_image)
+            merge_img = np.hstack([origin_crop_image, heat_img])
+            cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
+            imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
+            cv2.imwrite(os.path.join(write_path+"/forfilm", img_name), heat_img)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
         for dir_files in (LISTDIR(config.output_path)):
@@ -90,7 +85,7 @@ def test(config, test_loader):
                 full_path_2 = os.path.join(full_path, num_files+"/merge")
                 frame2video(full_path_2)
                 if config.keep_image == 0:
-                    full_path_3 = os.path.join(full_path, num_files+"/origin")
+                    full_path_3 = os.path.join(full_path, num_files+"/original")
                     full_path_4 = os.path.join(full_path, num_files+"/forfilm")
                     os.system("rm -r "+full_path_3)
                     os.system("rm -r "+full_path_4)
