@@ -38,7 +38,18 @@ def frame2video(path):
             frame = cv2.imread(full_path)
             videoWriter.write(frame)
     videoWriter.release()
-
+def postprocess_img(o_img):
+    int8_o_img = np.array(o_img, dtype=np.uint8)
+    if np.sum(int8_o_img != 0) == 0: ## all black
+        return int8_o_img
+    else:
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
+        if stats.shape[0] > 2:
+            if stats[1][4] <= stats[2][4]:
+                labels[labels == 1] = 0
+            elif stats[1][4] > stats[2][4]:
+                labels[labels == 2] = 0
+        return np.array(labels, dtype=np.uint8)
 def test(config, test_loader):
     threshold = config.threshold
     if config.which_model == 1:
@@ -63,6 +74,7 @@ def test(config, test_loader):
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            SR = postprocess_img(SR)
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
