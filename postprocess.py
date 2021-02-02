@@ -38,10 +38,10 @@ def frame2video(path):
             frame = cv2.imread(full_path)
             videoWriter.write(frame)
     videoWriter.release()
-def postprocess_img(o_img):
+def postprocess_img(o_img, final_mask_exist):
     int8_o_img = np.array(o_img, dtype=np.uint8)
-    if np.sum(int8_o_img != 0) == 0: ## all black
-        return int8_o_img
+    if np.sum(int8_o_img != 0) == 0 or final_mask_exist == 0:
+        return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
     else:
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
         if stats.shape[0] > 2:
@@ -68,13 +68,65 @@ def test(config, test_loader):
         os.makedirs(config.output_path)
     with torch.no_grad():
         tStart = time.time()
+        final_mask_exist = []
+        mask_img = {}
+        temp_mask_exist =[1] * len(test_loader)
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR)
+            SR = postprocess_img(SR, temp_mask_exist)
+            dict_path = file_name[0].split("/")[-3]
+            if dict_path not in mask_img:
+                mask_img[dict_path] = []
+                mask_img[dict_path].append(SR)
+            else:
+                mask_img[dict_path].append(SR)
+        middle_list = {}
+        for key in mask_img:
+            middle_list[key] = []
+            for img_index in range(len(mask_img[key])):
+                img = mask_img[key][img_index]
+                if np.sum(img) != 0:
+                    mean_x = np.mean(img.nonzero()[0])
+                    mean_y = np.mean(img.nonzero()[1])
+                else:
+                    mean_x = 0
+                    mean_y = 0
+                middle_list[key].append([mean_x, mean_y])
+        mean_list = {}
+        for key in middle_list:
+            temp_total = 0
+            mean_x = 0
+            mean_y = 0
+            for (x,y) in middle_list[key]:
+                if x != 0 and y != 0:
+                    mean_x += x
+                    mean_y += y
+                    temp_total += 1
+            mean_x = mean_x / temp_total
+            mean_y = mean_y / temp_total
+            mean_list[key] = [mean_x, mean_y]
+        for key in middle_list:
+            for (x, y) in middle_list[key]:
+                if x == 0 and y == 0:
+                    final_mask_exist.append(1)
+                else:
+                    abs_x = abs(x - mean_list[key][0])
+                    abs_y = abs(y - mean_list[key][1])
+                    if abs_x >= 50 or abs_y >= 50:
+                        final_mask_exist.append(0)
+                    else:
+                        final_mask_exist.append(1)
+        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+            image = image.cuda()
+            output = net(image)
+            crop_image = crop_image.squeeze().data.numpy()
+            origin_crop_image = crop_image.copy()
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            SR = postprocess_img(SR, final_mask_exist[i])
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
@@ -101,7 +153,6 @@ def test(config, test_loader):
                     full_path_4 = os.path.join(full_path, num_files+"/forfilm")
                     os.system("rm -r "+full_path_3)
                     os.system("rm -r "+full_path_4)
-                
 def main(config):
     # parameter setting
     test_loader = get_loader(image_path = config.input_path,
