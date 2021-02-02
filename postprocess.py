@@ -98,25 +98,42 @@ def test(config, test_loader):
                 middle_list[key].append([mean_x, mean_y])
         mean_list = {}
         for key in middle_list:
-            temp_total = 0
-            mean_x = 0
-            mean_y = 0
-            for (x,y) in middle_list[key]:
+            previous_total = 0
+            previous_x = 0
+            previous_y = 0
+            next_total = 0
+            next_x = 0
+            next_y = 0
+            for i, (x,y) in enumerate(middle_list[key]):
                 if x != 0 and y != 0:
-                    mean_x += x
-                    mean_y += y
-                    temp_total += 1
-            mean_x = mean_x / temp_total
-            mean_y = mean_y / temp_total
-            mean_list[key] = [mean_x, mean_y]
+                    if i < len(middle_list[key]) / 2:
+                        previous_x += x
+                        previous_y += y
+                        previous_total += 1
+                    else:
+                        next_x += x
+                        next_y += y
+                        next_total += 1
+            if previous_total ==0 or next_total == 0:
+                print(key)
+                previous_total += 1
+                next_total += 1
+            mean_list[key] = [ [previous_x/previous_total, previous_y/previous_total], [next_x/next_total, next_y/next_total]]
         for key in middle_list:
-            for (x, y) in middle_list[key]:
+            for i, (x, y) in enumerate(middle_list[key]):
                 if x == 0 and y == 0:
                     final_mask_exist.append(1)
+                elif i < len(middle_list[key]) / 2:
+                    abs_x = abs(x - mean_list[key][0][0])
+                    abs_y = abs(y - mean_list[key][0][1])
+                    if abs_x >= 75 or abs_y >= 75:
+                        final_mask_exist.append(0)
+                    else:
+                        final_mask_exist.append(1)
                 else:
-                    abs_x = abs(x - mean_list[key][0])
-                    abs_y = abs(y - mean_list[key][1])
-                    if abs_x >= 50 or abs_y >= 50:
+                    abs_x = abs(x - mean_list[key][1][0])
+                    abs_y = abs(y - mean_list[key][1][1])
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
