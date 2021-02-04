@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import argparse
 import time
 from matplotlib import cm as CM
+import copy
 ##net work
 from FCN32s import *
 from HDC import *
@@ -38,17 +39,24 @@ def frame2video(path):
             frame = cv2.imread(full_path)
             videoWriter.write(frame)
     videoWriter.release()
-def postprocess_img(o_img, final_mask_exist):
+def postprocess_img(o_img, final_mask_exist, continue_list):
     int8_o_img = np.array(o_img, dtype=np.uint8)
-    if np.sum(int8_o_img != 0) == 0 or final_mask_exist == 0:
+    if np.sum(int8_o_img != 0) == 0 or final_mask_exist == 0 or continue_list == 0:
         return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
     else:
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
+        index_sort = np.argsort(-stats[:,4])
+        if index_sort.shape[0] > 2:
+            for ll in index_sort[2:]:
+                labels[ labels == ll ] = 0
+        """
+        import ipdb; ipdb.set_trace()
         if stats.shape[0] > 2:
             if stats[1][4] <= stats[2][4]:
                 labels[labels == 1] = 0
             elif stats[1][4] > stats[2][4]:
                 labels[labels == 2] = 0
+        """
         return np.array(labels, dtype=np.uint8)
 def test(config, test_loader):
     threshold = config.threshold
@@ -70,20 +78,44 @@ def test(config, test_loader):
         tStart = time.time()
         final_mask_exist = []
         mask_img = {}
-        temp_mask_exist =[1] * len(test_loader)
+        temp_mask_exist = [1] * len(test_loader)
+        temp_continue_list = [1] * len(test_loader)
+        continue_list = []
+        last_signal = 0
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR, temp_mask_exist)
+            SR = postprocess_img(SR, temp_mask_exist[i], temp_continue_list[1])
+            if np.sum(SR != 0) == 0:
+                continue_list.append(0)
+            else:
+                continue_list.append(1)
             dict_path = file_name[0].split("/")[-3]
             if dict_path not in mask_img:
                 mask_img[dict_path] = []
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
+        postprocess_continue_list = copy.deepcopy(continue_list)
+        start = 0
+        end = 0
+        check_start = False
+        for i in range(len(continue_list)):
+            if continue_list[i] == 1 and check_start == False:
+                start = i
+                check_start = True
+                continue
+            elif continue_list[i] ==1 and check_start == True:
+                end = i
+                continue
+            elif continue_list [i] == 0 and check_start == True:
+                temp = (end+1) - start
+                if temp <= 10:
+                    postprocess_continue_list[start: end+1] = [0] * temp
+                check_start = False
         middle_list = {}
         for key in mask_img:
             middle_list[key] = []
@@ -137,13 +169,15 @@ def test(config, test_loader):
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
+        postprocess_continue_list = [1] * len(test_loader)
+        import ipdb; ipdb.set_trace()
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR, final_mask_exist[i])
+            SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
