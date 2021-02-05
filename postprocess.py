@@ -113,7 +113,7 @@ def test(config, test_loader):
                 continue
             elif continue_list [i] == 0 and check_start == True:
                 temp = (end+1) - start
-                if temp <= 10:
+                if temp <= 15:
                     postprocess_continue_list[start: end+1] = [0] * temp
                 check_start = False
         middle_list = {}
@@ -130,47 +130,78 @@ def test(config, test_loader):
                 middle_list[key].append([mean_x, mean_y])
         mean_list = {}
         for key in middle_list:
-            previous_total = 0
-            previous_x = 0
-            previous_y = 0
-            next_total = 0
-            next_x = 0
-            next_y = 0
+            temp_total = [0] * 5
+            temp_x = [0] * 5
+            temp_y = [0] * 5
             for i, (x,y) in enumerate(middle_list[key]):
                 if x != 0 and y != 0:
-                    if i < len(middle_list[key]) / 2:
-                        previous_x += x
-                        previous_y += y
-                        previous_total += 1
+                    if i < len(middle_list[key]) / 5:
+                        temp_x[0] += x
+                        temp_y[0] += y
+                        temp_total[0] += 1
+                    elif i < 2*len(middle_list[key]) / 5:
+                        temp_x[1] += x
+                        temp_y[1] += y
+                        temp_total[1] += 1
+                    elif i < 3*len(middle_list[key]) / 5:
+                        temp_x[2] += x
+                        temp_y[2] += y
+                        temp_total[2] += 1
+                    elif i < 4*len(middle_list[key]) / 5:
+                        temp_x[3] += x
+                        temp_y[3] += y
+                        temp_total[3] += 1
                     else:
-                        next_x += x
-                        next_y += y
-                        next_total += 1
-            if previous_total ==0 or next_total == 0:
-                print(key)
-                previous_total += 1
-                next_total += 1
-            mean_list[key] = [ [previous_x/previous_total, previous_y/previous_total], [next_x/next_total, next_y/next_total]]
+                        temp_x[4] += x
+                        temp_y[4] += y
+                        temp_total[4] += 1
+            for check_temp in range(len(temp_total)):
+                if temp_total[check_temp] == 0:
+                    temp_total[check_temp] +=1
+            temp_list = []
+            for temp in range(len(temp_total)):
+                temp_list.append([ temp_x[temp]/temp_total[temp], temp_y[temp]/temp_total[temp]])
+            mean_list[key] = temp_list
         for key in middle_list:
             for i, (x, y) in enumerate(middle_list[key]):
                 if x == 0 and y == 0:
                     final_mask_exist.append(1)
-                elif i < len(middle_list[key]) / 2:
+                elif i < len(middle_list[key]) / 5:
                     abs_x = abs(x - mean_list[key][0][0])
                     abs_y = abs(y - mean_list[key][0][1])
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-                else:
+                elif i < 2*len(middle_list[key]) / 5:
                     abs_x = abs(x - mean_list[key][1][0])
                     abs_y = abs(y - mean_list[key][1][1])
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-        postprocess_continue_list = [1] * len(test_loader)
-        import ipdb; ipdb.set_trace()
+                elif i < 3*len(middle_list[key]) / 5:
+                    abs_x = abs(x - mean_list[key][2][0])
+                    abs_y = abs(y - mean_list[key][2][1])
+                    if abs_x >= 75 or abs_y >= 75:
+                        final_mask_exist.append(0)
+                    else:
+                        final_mask_exist.append(1)
+                elif i < 4*len(middle_list[key]) / 5:
+                    abs_x = abs(x - mean_list[key][3][0])
+                    abs_y = abs(y - mean_list[key][3][1])
+                    if abs_x >= 75 or abs_y >= 75:
+                        final_mask_exist.append(0)
+                    else:
+                        final_mask_exist.append(1)
+                else:
+                    abs_x = abs(x - mean_list[key][4][0])
+                    abs_y = abs(y - mean_list[key][4][1])
+                    if abs_x >= 75 or abs_y >= 75:
+                        final_mask_exist.append(0)
+                    else:
+                        final_mask_exist.append(1)
+        #postprocess_continue_list = [1] * len(test_loader)
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
