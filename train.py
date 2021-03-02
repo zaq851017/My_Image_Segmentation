@@ -24,9 +24,10 @@ from HDC import *
 from FCN8s import *
 from Pspnet import *
 from GCN import *
+from loss_func import *
 import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
-    threshlod = 0.2
+    threshlod = 0.95
     print(config)
     if config.which_model == 1:
         net = FCN32s(2)
@@ -55,11 +56,11 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
     net = net.cuda()
 
     best_score = config.best_score
+    """
     train_weight = torch.FloatTensor([10 / 1]).cuda()
     criterion = nn.BCEWithLogitsLoss(pos_weight = train_weight)
-    #train_weight = torch.FloatTensor([1, 20]).cuda()
-    #criterion = nn.CrossEntropyLoss(weight = train_weight)
-    #criterion = nn.CrossEntropyLoss()
+    """
+    criterion = DiceBCELoss()
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     for epoch in range(EPOCH):
         train_loss = 0
@@ -83,13 +84,13 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
             SR = torch.where(output > threshlod, 1, 0).cpu()
             #SR = torch.argmax(output, dim = 1).squeeze(dim = 1).cpu()
             GT = mask.cpu()
-            acc += get_accuracy(SR,GT)
-            SE += get_sensitivity(SR,GT)
-            SP += get_specificity(SR,GT)
-            PC += get_precision(SR,GT)
-            F1 += get_F1(SR,GT)
-            JS += get_JS(SR,GT)
-            DC += get_DC(SR,GT)
+            acc += get_accuracy(SR,GT, threshlod)
+            SE += get_sensitivity(SR,GT, threshlod)
+            SP += get_specificity(SR,GT, threshlod)
+            PC += get_precision(SR,GT, threshlod)
+            F1 += get_F1(SR,GT, threshlod)
+            JS += get_JS(SR,GT, threshlod)
+            DC += get_DC(SR,GT, threshlod)
             if i % 50 == 0:
                 print('[Training] Loss: %.4f Acc: %.4f, SE: %.4f, SP: %.4f, PC: %.4f, F1: %.4f, JS: %.4f, DC: %.4f' % (train_loss/(i+1),acc /(i+1), SE/(i+1), SP/(i+1), PC/(i+1), F1 /(i+1), JS/(i+1), DC/(i+1)) )
         length = len(train_loader)
@@ -120,13 +121,13 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
                 SR = torch.where(output > threshlod, 1, 0).cpu()
                 #SR = torch.argmax(output, dim = 1).squeeze(dim = 1).cpu()
                 GT = mask.cpu()
-                acc += get_accuracy(SR,GT)
-                SE += get_sensitivity(SR,GT)
-                SP += get_specificity(SR,GT)
-                PC += get_precision(SR,GT)
-                F1 += get_F1(SR,GT)
-                JS += get_JS(SR,GT)
-                DC += get_DC(SR,GT)
+                acc += get_accuracy(SR,GT, threshlod)
+                SE += get_sensitivity(SR,GT, threshlod)
+                SP += get_specificity(SR,GT, threshlod)
+                PC += get_precision(SR,GT, threshlod)
+                F1 += get_F1(SR,GT, threshlod)
+                JS += get_JS(SR,GT, threshlod)
+                DC += get_DC(SR,GT, threshlod)
             length = len(valid_loader)
             acc = acc/length
             SE = SE/length

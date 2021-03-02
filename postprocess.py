@@ -82,7 +82,19 @@ def test(config, test_loader):
         temp_continue_list = [1] * len(test_loader)
         continue_list = []
         last_signal = 0
+        range_dict = {}
+        start = 0
+        end = -1
+        last_film_name = ""
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+            now_filename = file_name[0].split("/")[-3]
+            if now_filename != last_film_name and last_film_name in range_dict:
+                range_dict[last_film_name] = [start, end]
+            if now_filename != last_film_name and now_filename not in range_dict:
+                range_dict[now_filename] = [0, 0]
+                start = end+1
+            end += 1
+            last_film_name = now_filename
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
@@ -99,21 +111,33 @@ def test(config, test_loader):
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
+        range_dict[last_film_name] = [start, end]
         postprocess_continue_list = copy.deepcopy(continue_list)
         start = 0
         end = 0
         check_start = False
         for i in range(len(continue_list)):
-            if continue_list[i] == 1 and check_start == False:
+            if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
                 start = i
                 check_start = True
                 continue
-            elif continue_list[i] ==1 and check_start == True:
+            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1:
                 end = i
                 continue
-            elif continue_list [i] == 0 and check_start == True:
+            elif continue_list[i] == 0 and check_start == True:
                 temp = (end+1) - start
-                if temp <= 15:
+                if temp < 0:
+                    postprocess_continue_list[start: start+1] = [0]
+                if temp <= 30:
+                    postprocess_continue_list[start: end+1] = [0] * temp
+                check_start = False
+                continue
+            elif continue_list[i] == 1 and i == len(continue_list)-1:
+                end = i
+                temp = (end+1) - start
+                if temp < 0:
+                    postprocess_continue_list[end: end+1] = [0]
+                if temp <= 30:
                     postprocess_continue_list[start: end+1] = [0] * temp
                 check_start = False
         middle_list = {}
@@ -129,12 +153,19 @@ def test(config, test_loader):
                     mean_y = 0
                 middle_list[key].append([mean_x, mean_y])
         mean_list = {}
+        global_mean_list = {}
         for key in middle_list:
             temp_total = [0] * 5
             temp_x = [0] * 5
             temp_y = [0] * 5
+            temp_global_x = 0
+            temp_global_y = 0
+            temp_global_total = 0
             for i, (x,y) in enumerate(middle_list[key]):
                 if x != 0 and y != 0:
+                    temp_global_x += x
+                    temp_global_y += y
+                    temp_global_total += 1
                     if i < len(middle_list[key]) / 5:
                         temp_x[0] += x
                         temp_y[0] += y
@@ -155,60 +186,113 @@ def test(config, test_loader):
                         temp_x[4] += x
                         temp_y[4] += y
                         temp_total[4] += 1
+            if temp_global_total == 0:
+                temp_global_total += 1
             for check_temp in range(len(temp_total)):
                 if temp_total[check_temp] == 0:
                     temp_total[check_temp] +=1
             temp_list = []
             for temp in range(len(temp_total)):
                 temp_list.append([ temp_x[temp]/temp_total[temp], temp_y[temp]/temp_total[temp]])
+            global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
             mean_list[key] = temp_list
         for key in middle_list:
             for i, (x, y) in enumerate(middle_list[key]):
                 if x == 0 and y == 0:
-                    final_mask_exist.append(1)
+                    final_mask_exist.append(0)
                 elif i < len(middle_list[key]) / 5:
-                    abs_x = abs(x - mean_list[key][0][0])
-                    abs_y = abs(y - mean_list[key][0][1])
+                    abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][0][0]))
+                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][0][1]))
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 2*len(middle_list[key]) / 5:
-                    abs_x = abs(x - mean_list[key][1][0])
-                    abs_y = abs(y - mean_list[key][1][1])
+                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][1][0]))
+                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][1][1]))
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 3*len(middle_list[key]) / 5:
-                    abs_x = abs(x - mean_list[key][2][0])
-                    abs_y = abs(y - mean_list[key][2][1])
+                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][2][0]))
+                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][2][1]))
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 4*len(middle_list[key]) / 5:
-                    abs_x = abs(x - mean_list[key][3][0])
-                    abs_y = abs(y - mean_list[key][3][1])
+                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][3][0]))
+                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][3][1]))
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 else:
-                    abs_x = abs(x - mean_list[key][4][0])
-                    abs_y = abs(y - mean_list[key][4][1])
+                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][4][0]))
+                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][4][1]))
                     if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-        #postprocess_continue_list = [1] * len(test_loader)
+        range_list = [*range_dict.values()]
+        for (x,y) in range_list:
+            start = x
+            end = y
+            for i in range(start, end+1, 1):
+                if postprocess_continue_list[i] == 0:
+                    start +=1
+                else:
+                    break
+            for i in range(end, start-1, -1):
+                if postprocess_continue_list[i] == 0:
+                    end -= 1
+                else:
+                    break
+            temp = (end+1) - start
+            postprocess_continue_list[start: end+1] = [1] *temp
+        adjustment_list = [0] * len(final_mask_exist)
+        for i in range(len(final_mask_exist)):
+            if postprocess_continue_list[i] == 1 and final_mask_exist[i] == 0:
+                adjustment_list[i] = 1
+        check_start = False
+        temp_record = 0
+        save_list = []
+        for i in range(len(adjustment_list)-1, -1, -1):
+            if adjustment_list[i] == 0:
+                temp_record = i
+            elif adjustment_list[i] == 1:
+                save_list.insert(0, temp_record)
+                adjustment_list[i] = temp_record
+        save_img_list = {}
+        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+            if i in save_list:
+                image = image.cuda()
+                output = net(image)
+                SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+                if np.sum(SR==1) <= 1000:
+                    for j in range(len(save_list)):
+                        if save_list[j] == i:
+                            save_list[j] = i+1
+                    for j in range(len(adjustment_list)):
+                        if adjustment_list[j] == i:
+                            adjustment_list[j] = i+1
+                    last_num = [m for m,x in enumerate(adjustment_list) if x == i+1][-1]
+                    adjustment_list[last_num: i+1] = [i+1]*(i+1-last_num)
+                else:
+                    save_img_list[i] = SR
+        import ipdb; ipdb.set_trace()
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             image = image.cuda()
             output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
-            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+            if adjustment_list[i] == 0 or  (adjustment_list[i] == 1 and final_mask_exist[i] == 0):
+                SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+            else:
+                SR = save_img_list[adjustment_list[i]]
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
