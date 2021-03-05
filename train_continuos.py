@@ -7,12 +7,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn
 from torchvision import transforms as T
-from dataloader import get_loader
+from dataloader import get_continuous_loader
 from eval import *
 from PIL import Image
 import imageio
 from mean_iou_evaluate import *
-from loss_func import *
 ## need to remove before submit
 import ipdb
 from tqdm import tqdm
@@ -24,10 +23,11 @@ from HDC import *
 from FCN8s import *
 from Pspnet import *
 from GCN import *
+from T_FCN8s import *
 from loss_func import *
 import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
-    threshlod = 0.95
+    threshlod = 0.5
     print(config)
     if config.which_model == 1:
         net = FCN32s(2)
@@ -47,14 +47,17 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
     elif config.which_model == 6:
         net = smp.PSPNet('vgg16', encoder_weights='imagenet', classes=2)
         print("PSPNet Vgg16")
+    elif config.which_model == 7:
+        net = T_FCN8s(1)
+        feature_extractor = Feature_extractor()
+        print("Model temporal Temporal_FCN8S")
     elif config.which_model == 0:
         print("No assign which model!")
-
     if config.pretrain_model != "":
         net.load_state_dict(torch.load(config.pretrain_model))
         print("pretrain model loaded!")
     net = net.cuda()
-
+    #feature_extractor = feature_extractor.cuda()
     best_score = config.best_score
     train_weight = torch.FloatTensor([10 / 1]).cuda()
     criterion = nn.BCEWithLogitsLoss(pos_weight = train_weight)
@@ -70,18 +73,18 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
         JS = 0.		# Jaccard Similarity
         DC = 0.		# Dice Coefficient
         net.train()
-        for i, (image, mask) in tqdm(enumerate(train_loader)):
-            image = image.cuda()
-            mask = mask.cuda()
-            output = net(image).squeeze(dim = 1)
-            import ipdb; ipdb.set_trace()
+        for i, (file_name, image_list, mask_list) in tqdm(enumerate(train_loader)):
+            pn_frame = image_list[:,1:,:,:,:]
+            frame = image_list[:,:1,:,:,:]
+            mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+            pn_mask = mask_list[:,1:,:,:]
+            output = net(frame, pn_frame).squeeze(dim = 1)
             loss = criterion(output, mask.float())
             OPTIMIZER.zero_grad() 
             loss.backward()
             OPTIMIZER.step()
             train_loss += loss.item()
             SR = torch.where(output > threshlod, 1, 0).cpu()
-            #SR = torch.argmax(output, dim = 1).squeeze(dim = 1).cpu()
             GT = mask.cpu()
             acc += get_accuracy(SR,GT, threshlod)
             SE += get_sensitivity(SR,GT, threshlod)
@@ -111,14 +114,15 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
         DC = 0.
         with torch.no_grad():
             net.eval()
-            for i, (image, mask) in tqdm(enumerate(valid_loader)):
-                image = image.cuda()
-                mask = mask.cuda()
-                output = net(image).squeeze(dim = 1)
+            for i, (file_name, image_list, mask_list) in tqdm(enumerate(valid_loader)):
+                pn_frame = image_list[:,1:,:,:,:]
+                frame = image_list[:,:1,:,:,:]
+                mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                pn_mask = mask_list[:,1:,:,:]
+                output = net(frame, pn_frame).squeeze(dim = 1)
                 loss = criterion(output, mask.float())
                 train_loss += loss.item()
                 SR = torch.where(output > threshlod, 1, 0).cpu()
-                #SR = torch.argmax(output, dim = 1).squeeze(dim = 1).cpu()
                 GT = mask.cpu()
                 acc += get_accuracy(SR,GT, threshlod)
                 SE += get_sensitivity(SR,GT, threshlod)
@@ -143,6 +147,7 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
             print('Epoch [%d] [Validing] Acc: %.4f, SE: %.4f, SP: %.4f, PC: %.4f, F1: %.4f, JS: %.4f, DC: %.4f' % (epoch+1,acc,SE,SP,PC,F1,JS,DC))
+            """
             for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
                 image = image.cuda()
                 output = net(image)
@@ -160,8 +165,7 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
                 else:
                     cv2.drawContours(np.uint8(crop_image), contours, -1, (0,255,0), 3)
                     imageio.imwrite(image_save_path, crop_image)
-
-            
+            """
 def main(config):
     # parameter setting
     LR = config.learning_rate
@@ -169,17 +173,17 @@ def main(config):
     BATCH_SIZE = config.batch_size
 
 
-    train_loader = get_loader(image_path = "Medical_data/train/",
+    train_loader = get_continuous_loader(image_path = "Medical_data/train/", 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
                             augmentation_prob = 0.,
                             shffule_yn = True)
-    valid_loader = get_loader(image_path = "Medical_data/valid/",
+    valid_loader = get_continuous_loader(image_path = "Medical_data/valid/",
                             batch_size = 1,
                             mode = 'valid',
                             augmentation_prob = 0.,
                             shffule_yn = False)
-    test_loader = get_loader(image_path = "Medical_data/valid/",
+    test_loader = get_continuous_loader(image_path = "Medical_data/test/",
                             batch_size = 1,
                             mode = 'test',
                             augmentation_prob = 0.,
