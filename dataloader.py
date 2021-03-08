@@ -340,6 +340,23 @@ class Continuos_Image(data.Dataset):
                 mask.append(preprocess_mask(i_mask))
             mask = np.array(mask)
             return image_list, image, mask
+        if self.mode == "test":
+            image_list = self.image_paths_list[index]
+            image = torch.tensor([]).cuda()
+            for i, image_path in enumerate(image_list):
+                i_image = Image.open(image_path).convert('RGB')
+                image = torch.cat((image, test_preprocess_img(i_image)[1].cuda()), dim = 0)
+                if i == 0:
+                    o_image = np.array(test_preprocess_img(i_image)[0])
+            image = image.view(-1, 3, 368, 424)
+            return o_image, image_list[0], image
+            """
+            file_name = self.image_paths[index]
+            image_path = self.image_paths[index]
+            image = Image.open(image_path).convert('RGB')
+            crop_origin_image, image = test_preprocess_img(image)
+            return  np.array(crop_origin_image), file_name, image
+            """
     def __len__(self):
         return len(self.image_paths_list)
 def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False):

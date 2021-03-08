@@ -147,25 +147,22 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
             print('Epoch [%d] [Validing] Acc: %.4f, SE: %.4f, SP: %.4f, PC: %.4f, F1: %.4f, JS: %.4f, DC: %.4f' % (epoch+1,acc,SE,SP,PC,F1,JS,DC))
-            """
-            for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-                image = image.cuda()
-                output = net(image)
+            for i, (crop_image ,file_name, image_list) in tqdm(enumerate(test_loader)):
+                pn_frame = image_list[:,1:,:,:,:]
+                frame = image_list[:,:1,:,:,:]
+                output = net(frame, pn_frame).squeeze(dim = 1)
                 crop_image = crop_image.squeeze().data.numpy()
                 origin_crop_image = crop_image.copy()
                 SR = torch.where(output > threshlod, 1, 0).squeeze().cpu().data.numpy().astype("uint8")
-                contours, hierarchy = cv2.findContours(SR, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                write_path = file_name[0].replace("original", "forfilm")
+                heatmap = np.uint8(255 * SR)
+                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                heat_img = heatmap*0.9+origin_crop_image
+                write_path = file_name[0].replace("original", "heat")
                 write_path = "/".join(write_path.split("/")[:-1])
                 if not os.path.isdir(write_path):
                     os.makedirs(write_path)
                 image_save_path = os.path.join(write_path, file_name[0].split("/")[-1])
-                if contours ==[]:
-                    imageio.imwrite(image_save_path, crop_image)
-                else:
-                    cv2.drawContours(np.uint8(crop_image), contours, -1, (0,255,0), 3)
-                    imageio.imwrite(image_save_path, crop_image)
-            """
+                cv2.imwrite(image_save_path, heat_img)
 def main(config):
     # parameter setting
     LR = config.learning_rate
