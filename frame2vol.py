@@ -20,7 +20,7 @@ def vol_cal(frame_file_path):
             f = open(height_file, "r")
             height = float(f.read())/10.0
             f.close()
-            mask_path = os.path.join(full_path_2, "mask")
+            mask_path = os.path.join(full_path_2, "vol_mask")
             mask_list = []
             for mask_file in LISTDIR(mask_path):
                 full_path_3 = os.path.join(mask_path, mask_file)
@@ -37,7 +37,7 @@ def vol_cal(frame_file_path):
                 index.append(i)
             temp_area = np.count_nonzero(mask_list[len(mask_list)-1] != 0.0) * pixel_area / len(mask_list)
             area.append(temp_area)
-            index.append(len(mask_list))
+            index.append(len(mask_list)-1)
             for i in range(1, len(mask_list)):
                 right_area += np.count_nonzero(mask_list[i] != 0.0)    
             ll = (left_area * pixel_area)
@@ -47,10 +47,12 @@ def vol_cal(frame_file_path):
             plt.xlabel("frame")
             plt.ylabel("area(cm^2)")
             plt.bar(index, area, width=1.0)
-            #plt.show()
             save_path = os.path.join(full_path_2, "Volume.jpg")
             plt.savefig(save_path)
             plt.close()
             print(save_path)
 if __name__ == "__main__":
-    vol_result = vol_cal("./my_label_result/")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_path', type=str, default="")
+    config = parser.parse_args()
+    vol_result = vol_cal(config.input_path)

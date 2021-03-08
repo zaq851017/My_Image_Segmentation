@@ -234,7 +234,7 @@ class Continuos_Image(data.Dataset):
         self.mode = mode
         self.augmentation_prob = prob
         self.RotationDegree = [0,90,180,270]
-        self.continuous_frame_num = [5,15,25]
+        self.continuous_frame_num = [1,10,20,30]
         if mode == "train" or mode == "valid":
             self.image_paths = {}
             self.mask_paths = {}
