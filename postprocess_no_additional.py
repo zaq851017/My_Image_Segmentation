@@ -59,7 +59,6 @@ def test(config, test_loader):
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)
     with torch.no_grad():
-        """
         tStart = time.time()
         for i, (crop_image ,file_name, image_list) in tqdm(enumerate(test_loader)):
             pn_frame = image_list[:,1:,:,:,:]
@@ -89,7 +88,6 @@ def test(config, test_loader):
             cv2.imwrite(os.path.join(write_path+"/vol_mask", img_name), SR*255)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
-        """
         for dir_files in (LISTDIR(config.output_path)):
             full_path = os.path.join(config.output_path, dir_files)
             o_full_path = os.path.join(config.input_path, dir_files)
