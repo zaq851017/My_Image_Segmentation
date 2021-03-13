@@ -230,7 +230,6 @@ def test(config, test_loader):
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-        import ipdb; ipdb.set_trace()
         """
         range_list = [*range_dict.values()]
         for (x,y) in range_list:
@@ -295,14 +294,19 @@ def test(config, test_loader):
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
-            if not os.path.isdir(write_path):
-                os.makedirs(write_path+"/merge")
+            if not os.path.isdir(write_path+"/original"):
                 os.makedirs(write_path+"/original")
+            if not os.path.isdir(write_path+"/forfilm"):
                 os.makedirs(write_path+"/forfilm")
+            if not os.path.isdir(write_path+"/merge"):
+                os.makedirs(write_path+"/merge")
+            if not os.path.isdir(write_path+"/vol_mask"):
+                os.makedirs(write_path+"/vol_mask")
             merge_img = np.hstack([origin_crop_image, heat_img])
             cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
             imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
             cv2.imwrite(os.path.join(write_path+"/forfilm", img_name), heat_img)
+            cv2.imwrite(os.path.join(write_path+"/vol_mask", img_name), SR*255)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
         for dir_files in (LISTDIR(config.output_path)):

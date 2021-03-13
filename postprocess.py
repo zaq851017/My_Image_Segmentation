@@ -299,20 +299,30 @@ def test(config, test_loader):
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
-            if not os.path.isdir(write_path):
-                os.makedirs(write_path+"/merge")
+            if not os.path.isdir(write_path+"/original"):
                 os.makedirs(write_path+"/original")
+            if not os.path.isdir(write_path+"/forfilm"):
                 os.makedirs(write_path+"/forfilm")
+            if not os.path.isdir(write_path+"/merge"):
+                os.makedirs(write_path+"/merge")
+            if not os.path.isdir(write_path+"/vol_mask"):
+                os.makedirs(write_path+"/vol_mask")
             merge_img = np.hstack([origin_crop_image, heat_img])
             cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
             imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
             cv2.imwrite(os.path.join(write_path+"/forfilm", img_name), heat_img)
+            cv2.imwrite(os.path.join(write_path+"/vol_mask", img_name), SR*255)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
         for dir_files in (LISTDIR(config.output_path)):
             full_path = os.path.join(config.output_path, dir_files)
+            o_full_path = os.path.join(config.input_path, dir_files)
             for num_files in tqdm(LISTDIR(full_path)):
                 full_path_2 = os.path.join(full_path, num_files+"/merge")
+                height_path = os.path.join(o_full_path, num_files, "height.txt")
+                s_height_path = os.path.join(full_path, num_files)
+                os.system("cp "+height_path+" "+s_height_path)
+                print("cp "+height_path+" "+s_height_path)
                 frame2video(full_path_2)
                 if config.keep_image == 0:
                     full_path_3 = os.path.join(full_path, num_files+"/original")
