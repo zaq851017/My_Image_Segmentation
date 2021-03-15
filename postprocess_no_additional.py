@@ -40,6 +40,7 @@ def frame2video(path):
             videoWriter.write(frame)
     videoWriter.release()
 def test(config, test_loader):
+    Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
     if config.which_model == 1:
         net = FCN32s(1)
@@ -64,6 +65,7 @@ def test(config, test_loader):
             pn_frame = image_list[:,1:,:,:,:]
             frame = image_list[:,:1,:,:,:]
             output = net(frame, pn_frame).squeeze(dim = 1)
+            output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy().astype("uint8")

@@ -24,6 +24,7 @@ from FCN8s import *
 from Pspnet import *
 from GCN import *
 from T_FCN8s import *
+from T_Res_FCN import *
 from loss_func import *
 import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
@@ -49,8 +50,10 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
         print("PSPNet Vgg16")
     elif config.which_model == 7:
         net = T_FCN8s(1)
-        feature_extractor = Feature_extractor()
-        print("Model temporal Temporal_FCN8S")
+        print("Model vgg-temporal Temporal_FCN8S")
+    elif config.which_model == 8:
+        net = T_Res_FCN(1)
+        print("Model res-temporal T_Res_FCN")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":

@@ -59,6 +59,7 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
         """
         return np.array(labels, dtype=np.uint8)
 def test(config, test_loader):
+    Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
     distance = 75
     if config.which_model == 1:
@@ -93,6 +94,7 @@ def test(config, test_loader):
             pn_frame = image[:,1:,:,:,:]
             frame = image[:,:1,:,:,:]
             output = net(frame, pn_frame).squeeze(dim = 1)
+            output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
@@ -284,6 +286,7 @@ def test(config, test_loader):
             pn_frame = image[:,1:,:,:,:]
             frame = image[:,:1,:,:,:]
             output = net(frame, pn_frame).squeeze(dim = 1)
+            output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
