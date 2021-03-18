@@ -234,7 +234,7 @@ class Continuos_Image(data.Dataset):
         self.mode = mode
         self.augmentation_prob = prob
         self.RotationDegree = [0,90,180,270]
-        self.continuous_frame_num = [1,10,20,30]
+        self.continuous_frame_num = [1, 10, 20, 30]
         if mode == "train" or mode == "valid":
             self.image_paths = {}
             self.mask_paths = {}
@@ -350,13 +350,6 @@ class Continuos_Image(data.Dataset):
                     o_image = np.array(test_preprocess_img(i_image)[0])
             image = image.view(-1, 3, 368, 424)
             return o_image, image_list[0], image
-            """
-            file_name = self.image_paths[index]
-            image_path = self.image_paths[index]
-            image = Image.open(image_path).convert('RGB')
-            crop_origin_image, image = test_preprocess_img(image)
-            return  np.array(crop_origin_image), file_name, image
-            """
     def __len__(self):
         return len(self.image_paths_list)
 def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False):

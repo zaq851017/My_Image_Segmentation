@@ -20,38 +20,41 @@ class _DecoderBlock(nn.Module):
             nn.Conv2d(middle_channels, middle_channels, kernel_size=3),
             nn.BatchNorm2d(middle_channels),
             nn.ReLU(inplace=True),
+            nn.Dropout(),
             nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=2, stride=2),
         )
 
     def forward(self, x):
         return self.decode(x)
-class T_Res_FCN(nn.Module):
+
+class Vgg_Unet(nn.Module):
     def __init__(self, num_classes):
-        super(T_Res_FCN, self).__init__()
         warnings.filterwarnings('ignore')
-        res = models.resnet50(pretrained=True)
-        res_feature = nn.Sequential(*list(res.children())[:-1])
-        self.features1 = nn.Sequential(*res_feature[:5])
-        self.features2 = nn.Sequential(*res_feature[5:6])
-        self.features3 = nn.Sequential(*res_feature[6:7])
-        self.features4 = nn.Sequential(*res_feature[7:8])
-        self.center = _DecoderBlock(2048, 4096, 2048)
-        self.dec4 = _DecoderBlock(4096, 2048, 1024)
-        self.dec3 = _DecoderBlock(2048, 1024, 512)
-        self.dec2 = _DecoderBlock(1024, 512, 256)
-        self.dec1 = _DecoderBlock(512, 256, 128)
-        """
+        super(Vgg_Unet, self).__init__()
+        vgg = models.vgg16(pretrained=True)
+        features, classifier = list(vgg.features.children()), list(vgg.classifier.children())
+        self.features1 = nn.Sequential(*features[: 5])
+        self.features2 = nn.Sequential(*features[5: 10])
+        self.features3 = nn.Sequential(*features[10: 17])
+        self.features4 = nn.Sequential(*features[17:])
+        self.center = _DecoderBlock(512, 1024, 512)
+        self.dec4 = _DecoderBlock(1024, 512, 256)
+        self.dec3 = _DecoderBlock(512, 256, 128)
+        self.dec2 = _DecoderBlock(256, 128, 64)
         self.dec1 = nn.Sequential(
-            nn.Conv2d(512, 256, kernel_size=3),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 64, kernel_size=3),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 128, kernel_size=3),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(64, 64, kernel_size=3),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
-        """
-        self.final = nn.Conv2d(128, num_classes, kernel_size=1)
+        self.final = nn.Conv2d(64, num_classes, kernel_size=1)
     def forward(self, x, other_frame):
+        # pool1 = (64, 184, 212)
+        # pool2 = (128, 92, 106)
+        # pool3 = (256, 46, 53)
+        # pool4 = (512, 11, 13)
         image_num = other_frame.shape[1]
         output1 = torch.tensor([]).cuda()
         output2 = torch.tensor([]).cuda()
@@ -59,19 +62,19 @@ class T_Res_FCN(nn.Module):
         output4 = torch.tensor([]).cuda()
         for i in range(image_num):
             temp = self.features1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 256, 92, 106)
+            temp = temp.view(-1, 1, 64, 184, 212)
             output1  = torch.cat((output1, temp), dim = 1)
         for i in range(image_num):
             temp = self.features2(output1[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 512, 46, 53)
+            temp = temp.view(-1, 1, 128, 92, 106)
             output2  = torch.cat((output2, temp), dim = 1)
         for i in range(image_num):
             temp = self.features3(output2[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 1024, 23, 27)
+            temp = temp.view(-1, 1, 256, 46, 53)
             output3  = torch.cat((output3, temp), dim = 1)
         for i in range(image_num):
             temp = self.features4(output3[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 2048, 12, 14)
+            temp = temp.view(-1, 1, 512, 11, 13)
             output4  = torch.cat((output4, temp), dim = 1)
         x = x.squeeze(dim = 1)
         x_size = x.size()
@@ -94,5 +97,5 @@ class T_Res_FCN(nn.Module):
         dec1 = self.dec1(torch.cat([dec2, F.upsample(merge_pool1, dec2.size()[2:], mode='bilinear')], 1))
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
-        import ipdb; ipdb.set_trace()
->>>>>>> Stashed changes
+        return predict
+        

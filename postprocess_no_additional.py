@@ -42,6 +42,7 @@ def frame2video(path):
 def test(config, test_loader):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
+    Sigmoid_func = nn.Sigmoid()
     if config.which_model == 1:
         net = FCN32s(1)
         print("FCN32s load!")

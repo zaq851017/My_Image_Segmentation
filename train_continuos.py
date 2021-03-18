@@ -25,9 +25,14 @@ from Pspnet import *
 from GCN import *
 from T_FCN8s import *
 from T_Res_FCN import *
+<<<<<<< Updated upstream
+=======
+from Vgg_Unet import *
+>>>>>>> Stashed changes
 from loss_func import *
 import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
+    Sigmoid_func = nn.Sigmoid()
     threshlod = 0.5
     print(config)
     if config.which_model == 1:
@@ -54,6 +59,12 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
     elif config.which_model == 8:
         net = T_Res_FCN(1)
         print("Model res-temporal T_Res_FCN")
+<<<<<<< Updated upstream
+=======
+    elif config.which_model == 9:
+        net = Vgg_Unet(1)
+        print("Model vgg-unet Vgg_Unet")
+>>>>>>> Stashed changes
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -150,22 +161,24 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
             print('Epoch [%d] [Validing] Acc: %.4f, SE: %.4f, SP: %.4f, PC: %.4f, F1: %.4f, JS: %.4f, DC: %.4f' % (epoch+1,acc,SE,SP,PC,F1,JS,DC))
-            for i, (crop_image ,file_name, image_list) in tqdm(enumerate(test_loader)):
-                pn_frame = image_list[:,1:,:,:,:]
-                frame = image_list[:,:1,:,:,:]
-                output = net(frame, pn_frame).squeeze(dim = 1)
-                crop_image = crop_image.squeeze().data.numpy()
-                origin_crop_image = crop_image.copy()
-                SR = torch.where(output > threshlod, 1, 0).squeeze().cpu().data.numpy().astype("uint8")
-                heatmap = np.uint8(255 * SR)
-                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-                heat_img = heatmap*0.9+origin_crop_image
-                write_path = file_name[0].replace("original", "heat")
-                write_path = "/".join(write_path.split("/")[:-1])
-                if not os.path.isdir(write_path):
-                    os.makedirs(write_path)
-                image_save_path = os.path.join(write_path, file_name[0].split("/")[-1])
-                cv2.imwrite(image_save_path, heat_img)
+            if config.draw_image == 1:
+                for i, (crop_image ,file_name, image_list) in tqdm(enumerate(test_loader)):
+                    pn_frame = image_list[:,1:,:,:,:]
+                    frame = image_list[:,:1,:,:,:]
+                    output = net(frame, pn_frame).squeeze(dim = 1)
+                    output = Sigmoid_func(output)
+                    crop_image = crop_image.squeeze().data.numpy()
+                    origin_crop_image = crop_image.copy()
+                    SR = torch.where(output > threshlod, 1, 0).squeeze().cpu().data.numpy().astype("uint8")
+                    heatmap = np.uint8(255 * SR)
+                    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                    heat_img = heatmap*0.9+origin_crop_image
+                    write_path = file_name[0].replace("original", "heat")
+                    write_path = "/".join(write_path.split("/")[:-1])
+                    if not os.path.isdir(write_path):
+                        os.makedirs(write_path)
+                    image_save_path = os.path.join(write_path, file_name[0].split("/")[-1])
+                    cv2.imwrite(image_save_path, heat_img)
 def main(config):
     # parameter setting
     LR = config.learning_rate
@@ -200,5 +213,6 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--save_model_path', type=str, default="./models/")
     parser.add_argument('--best_score', type=float, default=0.5)
+    parser.add_argument('--draw_image', type=int, default=0)
     config = parser.parse_args()
     main(config)

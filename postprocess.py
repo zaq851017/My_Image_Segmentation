@@ -59,6 +59,7 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
         """
         return np.array(labels, dtype=np.uint8)
 def test(config, test_loader):
+    Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
     if config.which_model == 1:
         net = FCN32s(1)
