@@ -25,9 +25,9 @@ class _DecoderBlock(nn.Module):
 
     def forward(self, x):
         return self.decode(x)
-class T_Res_FCN(nn.Module):
+class T_Res_Unet(nn.Module):
     def __init__(self, num_classes):
-        super(T_Res_FCN, self).__init__()
+        super(T_Res_Unet, self).__init__()
         warnings.filterwarnings('ignore')
         res = models.resnet50(pretrained=True)
         res_feature = nn.Sequential(*list(res.children())[:-1])
@@ -94,5 +94,4 @@ class T_Res_FCN(nn.Module):
         dec1 = self.dec1(torch.cat([dec2, F.upsample(merge_pool1, dec2.size()[2:], mode='bilinear')], 1))
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
-        import ipdb; ipdb.set_trace()
->>>>>>> Stashed changes
+        return predict

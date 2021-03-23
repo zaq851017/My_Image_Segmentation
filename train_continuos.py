@@ -18,34 +18,35 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 ##net work
-from FCN32s import *
-from HDC import *
-from FCN8s import *
-from Pspnet import *
-from GCN import *
-from T_FCN8s import *
-from T_Res_FCN import *
-<<<<<<< Updated upstream
-=======
-from Vgg_Unet import *
->>>>>>> Stashed changes
+from network.FCN32s import *
+from network.HDC import *
+from network.FCN8s import *
+from network.Pspnet import *
+from network.GCN import *
+from network.T_FCN8s import *
+from network.T_Res_Unet import *
+from network.Vgg_Unet import *
 from loss_func import *
 import segmentation_models_pytorch as smp
 def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
     Sigmoid_func = nn.Sigmoid()
-    threshlod = 0.5
+    threshlod = config.threshold
     print(config)
     if config.which_model == 1:
         net = FCN32s(2)
+        model_name = "FCN32S"
         print("Base model FCN32S")
     elif config.which_model == 2:
         net = HDC(2)
+        model_name = "HDC"
         print("HDC model")
     elif config.which_model == 3:
         net = FCN8s(1)
+        model_name = "FCN8S"
         print("Model FCN8S")
     elif config.which_model == 4:
         net = GCN(2)
+        model_name = "GCN"
         print("GCN net")
     elif config.which_model == 5:
         net = smp.Unet('vgg16', encoder_weights='imagenet', classes=2)
@@ -55,16 +56,16 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
         print("PSPNet Vgg16")
     elif config.which_model == 7:
         net = T_FCN8s(1)
+        model_name = "vgg_temporal_FCN"
         print("Model vgg-temporal Temporal_FCN8S")
     elif config.which_model == 8:
-        net = T_Res_FCN(1)
-        print("Model res-temporal T_Res_FCN")
-<<<<<<< Updated upstream
-=======
+        net = T_Res_Unet(1)
+        model_name = "res_temporal_Unet"
+        print("Model res-temporal T_Res_Unet")
     elif config.which_model == 9:
         net = Vgg_Unet(1)
+        model_name = "vgg_unet"
         print("Model vgg-unet Vgg_Unet")
->>>>>>> Stashed changes
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -156,7 +157,7 @@ def train(config, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR
             score = DC + JS
             if score >= best_score:
                 best_score = score
-                net_save_path = config.save_model_path + "Epoch="+str(epoch)+"_Score="+str(round(score,3))
+                net_save_path = config.save_model_path + model_name +"_Epoch="+str(epoch)+"_Score="+str(round(score,3))
                 print("Model save in "+config.save_model_path + "Epoch="+str(epoch)+"_Score="+str(round(score,3))+".pkl")
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
@@ -213,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--save_model_path', type=str, default="./models/")
     parser.add_argument('--best_score', type=float, default=0.5)
+    parser.add_argument('--threshold', type=float, default=0.7)
     parser.add_argument('--draw_image', type=int, default=0)
     config = parser.parse_args()
     main(config)
