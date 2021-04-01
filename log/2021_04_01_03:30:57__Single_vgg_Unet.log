@@ -1,0 +1,80 @@
+INFO:root:Namespace(batch_size=4, best_score=0.6, continuous=0, draw_image=0, epoch=10, learning_rate=0.0001, pretrain_model='', save_model_path='./My_Image_Segmentation/models/', threshold=0.7, which_model=2)
+INFO:root:Epoch[1] Training[1/1418] F1: 0.0240, F2 : 0.0204
+INFO:root:Epoch[1] Training[101/1418] F1: 0.3978, F2 : 0.4070
+INFO:root:Epoch[1] Training[201/1418] F1: 0.5305, F2 : 0.5614
+INFO:root:Epoch[1] Training[301/1418] F1: 0.5312, F2 : 0.5797
+INFO:root:Epoch[1] Training[401/1418] F1: 0.5297, F2 : 0.5925
+INFO:root:Epoch[1] Training[501/1418] F1: 0.5453, F2 : 0.6187
+INFO:root:Epoch[1] Training[601/1418] F1: 0.5846, F2 : 0.6654
+INFO:root:Epoch[1] Training[701/1418] F1: 0.6019, F2 : 0.6873
+INFO:root:Epoch[1] Training[801/1418] F1: 0.6114, F2 : 0.7025
+INFO:root:Epoch[1] Training[901/1418] F1: 0.6323, F2 : 0.7177
+INFO:root:Epoch[1] Training[1001/1418] F1: 0.6526, F2 : 0.7390
+INFO:root:Epoch[1] Training[1101/1418] F1: 0.6760, F2 : 0.7583
+INFO:root:Epoch[1] Training[1201/1418] F1: 0.6724, F2 : 0.7595
+INFO:root:Epoch[1] Training[1301/1418] F1: 0.6866, F2 : 0.7721
+INFO:root:Epoch[1] Training[1401/1418] F1: 0.6978, F2 : 0.7811
+INFO:root:Epoch [1] [Valid] F1: 0.7531
+INFO:root:Model save in ./My_Image_Segmentation/models/2021_04_01_03:30:57_Single_vgg_Unet/Epoch=0_Score=0.753.pt
+INFO:root:Epoch[2] Training[1/1418] F1: 0.8737, F2 : 0.8913
+INFO:root:Epoch[2] Training[101/1418] F1: 0.8830, F2 : 0.8986
+INFO:root:Epoch[2] Training[201/1418] F1: 0.8700, F2 : 0.9023
+INFO:root:Epoch[2] Training[301/1418] F1: 0.8428, F2 : 0.8969
+INFO:root:Epoch[2] Training[401/1418] F1: 0.8271, F2 : 0.8916
+INFO:root:Epoch[2] Training[501/1418] F1: 0.8145, F2 : 0.8772
+INFO:root:Epoch[2] Training[601/1418] F1: 0.8191, F2 : 0.8782
+INFO:root:Epoch[2] Training[701/1418] F1: 0.8161, F2 : 0.8785
+INFO:root:Epoch[2] Training[801/1418] F1: 0.8235, F2 : 0.8807
+INFO:root:Epoch[2] Training[901/1418] F1: 0.8268, F2 : 0.8811
+INFO:root:Epoch[2] Training[1001/1418] F1: 0.8329, F2 : 0.8883
+INFO:root:Epoch[2] Training[1101/1418] F1: 0.8369, F2 : 0.8911
+INFO:root:Epoch[2] Training[1201/1418] F1: 0.8356, F2 : 0.8923
+INFO:root:Epoch[2] Training[1301/1418] F1: 0.8429, F2 : 0.8974
+INFO:root:Epoch[2] Training[1401/1418] F1: 0.8429, F2 : 0.8991
+INFO:root:Epoch [2] [Valid] F1: 0.7825
+INFO:root:Model save in ./My_Image_Segmentation/models/2021_04_01_03:30:57_Single_vgg_Unet/Epoch=1_Score=0.783.pt
+INFO:root:Epoch[3] Training[1/1418] F1: 0.9180, F2 : 0.9431
+INFO:root:Epoch[3] Training[101/1418] F1: 0.8997, F2 : 0.9241
+INFO:root:Epoch[3] Training[201/1418] F1: 0.9039, F2 : 0.9272
+INFO:root:Epoch[3] Training[301/1418] F1: 0.9007, F2 : 0.9263
+INFO:root:Epoch[3] Training[401/1418] F1: 0.8929, F2 : 0.9279
+INFO:root:Epoch[3] Training[501/1418] F1: 0.8964, F2 : 0.9288
+INFO:root:Epoch[3] Training[601/1418] F1: 0.8919, F2 : 0.9261
+INFO:root:Epoch[3] Training[701/1418] F1: 0.8934, F2 : 0.9284
+INFO:root:Epoch[3] Training[801/1418] F1: 0.8827, F2 : 0.9262
+INFO:root:Epoch[3] Training[901/1418] F1: 0.8807, F2 : 0.9266
+INFO:root:Epoch[3] Training[1001/1418] F1: 0.8756, F2 : 0.9246
+INFO:root:Epoch[3] Training[1101/1418] F1: 0.8764, F2 : 0.9260
+INFO:root:Epoch[3] Training[1201/1418] F1: 0.8720, F2 : 0.9246
+INFO:root:Epoch[3] Training[1301/1418] F1: 0.8719, F2 : 0.9251
+INFO:root:Epoch[3] Training[1401/1418] F1: 0.8743, F2 : 0.9263
+INFO:root:Epoch [3] [Valid] F1: 0.7821
+INFO:root:Epoch[4] Training[1/1418] F1: 0.9144, F2 : 0.9477
+INFO:root:Epoch[4] Training[101/1418] F1: 0.9107, F2 : 0.9424
+INFO:root:Epoch[4] Training[201/1418] F1: 0.9080, F2 : 0.9430
+INFO:root:Epoch[4] Training[301/1418] F1: 0.9170, F2 : 0.9440
+INFO:root:Epoch[4] Training[401/1418] F1: 0.9134, F2 : 0.9429
+INFO:root:Epoch[4] Training[501/1418] F1: 0.9103, F2 : 0.9442
+INFO:root:Epoch[4] Training[601/1418] F1: 0.9130, F2 : 0.9475
+INFO:root:Epoch[4] Training[701/1418] F1: 0.9120, F2 : 0.9467
+INFO:root:Epoch[4] Training[801/1418] F1: 0.9069, F2 : 0.9446
+INFO:root:Epoch[4] Training[901/1418] F1: 0.9098, F2 : 0.9476
+INFO:root:Epoch[4] Training[1001/1418] F1: 0.9098, F2 : 0.9481
+INFO:root:Epoch[4] Training[1101/1418] F1: 0.9112, F2 : 0.9479
+INFO:root:Epoch[4] Training[1201/1418] F1: 0.9101, F2 : 0.9474
+INFO:root:Epoch[4] Training[1301/1418] F1: 0.9064, F2 : 0.9459
+INFO:root:Epoch[4] Training[1401/1418] F1: 0.9086, F2 : 0.9463
+INFO:root:Epoch [4] [Valid] F1: 0.7966
+INFO:root:Model save in ./My_Image_Segmentation/models/2021_04_01_03:30:57_Single_vgg_Unet/Epoch=3_Score=0.797.pt
+INFO:root:Epoch[5] Training[1/1418] F1: 0.8498, F2 : 0.9001
+INFO:root:Epoch[5] Training[101/1418] F1: 0.9039, F2 : 0.9325
+INFO:root:Epoch[5] Training[201/1418] F1: 0.9143, F2 : 0.9428
+INFO:root:Epoch[5] Training[301/1418] F1: 0.9099, F2 : 0.9418
+INFO:root:Epoch[5] Training[401/1418] F1: 0.9015, F2 : 0.9410
+INFO:root:Epoch[5] Training[501/1418] F1: 0.8963, F2 : 0.9396
+INFO:root:Epoch[5] Training[601/1418] F1: 0.8814, F2 : 0.9344
+INFO:root:Epoch[5] Training[701/1418] F1: 0.8885, F2 : 0.9387
+INFO:root:Epoch[5] Training[801/1418] F1: 0.8874, F2 : 0.9376
+INFO:root:Epoch[5] Training[901/1418] F1: 0.8913, F2 : 0.9392
+INFO:root:Epoch[5] Training[1001/1418] F1: 0.8925, F2 : 0.9405
+INFO:root:Epoch[5] Training[1101/1418] F1: 0.8941, F2 : 0.9418

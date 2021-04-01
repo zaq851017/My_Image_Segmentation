@@ -27,10 +27,10 @@ class _DecoderBlock(nn.Module):
     def forward(self, x):
         return self.decode(x)
 
-class Vgg_Unet(nn.Module):
+class Single_vgg_Unet(nn.Module):
     def __init__(self, num_classes):
         warnings.filterwarnings('ignore')
-        super(Vgg_Unet, self).__init__()
+        super(Single_vgg_Unet, self).__init__()
         vgg = models.vgg16(pretrained=True)
         features, classifier = list(vgg.features.children()), list(vgg.classifier.children())
         self.features1 = nn.Sequential(*features[: 5])
@@ -50,51 +50,22 @@ class Vgg_Unet(nn.Module):
             nn.ReLU(inplace=True),
         )
         self.final = nn.Conv2d(64, num_classes, kernel_size=1)
-    def forward(self, x, other_frame):
+    def forward(self, x):
         # pool1 = (64, 184, 212)
         # pool2 = (128, 92, 106)
         # pool3 = (256, 46, 53)
         # pool4 = (512, 11, 13)
-        image_num = other_frame.shape[1]
-        output1 = torch.tensor([]).cuda()
-        output2 = torch.tensor([]).cuda()
-        output3 = torch.tensor([]).cuda()
-        output4 = torch.tensor([]).cuda()
-        for i in range(image_num):
-            temp = self.features1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 64, 184, 212)
-            output1  = torch.cat((output1, temp), dim = 1)
-        for i in range(image_num):
-            temp = self.features2(output1[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 128, 92, 106)
-            output2  = torch.cat((output2, temp), dim = 1)
-        for i in range(image_num):
-            temp = self.features3(output2[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 256, 46, 53)
-            output3  = torch.cat((output3, temp), dim = 1)
-        for i in range(image_num):
-            temp = self.features4(output3[:,i:i+1,:,:,:].squeeze(dim = 1))
-            temp = temp.view(-1, 1, 512, 11, 13)
-            output4  = torch.cat((output4, temp), dim = 1)
         x = x.squeeze(dim = 1)
         x_size = x.size()
         pool1 = self.features1(x)
         pool2 = self.features2(pool1)
         pool3 = self.features3(pool2)
         pool4 = self.features4(pool3)
-        merge_pool1 = torch.cat((output1, pool1.unsqueeze(dim = 1)), dim = 1)
-        merge_pool2 = torch.cat((output2, pool2.unsqueeze(dim = 1)), dim = 1)
-        merge_pool3 = torch.cat((output3, pool3.unsqueeze(dim = 1)), dim = 1)
-        merge_pool4 = torch.cat((output4, pool4.unsqueeze(dim = 1)), dim = 1)
-        merge_pool1 = torch.mean(merge_pool1, dim = 1)
-        merge_pool2 = torch.mean(merge_pool2, dim = 1)
-        merge_pool3 = torch.mean(merge_pool3, dim = 1)
-        merge_pool4 = torch.mean(merge_pool4, dim = 1)
-        center = self.center(merge_pool4)
-        dec4 = self.dec4(torch.cat([center, F.upsample(merge_pool4, center.size()[2:], mode='bilinear')], 1))
-        dec3 = self.dec3(torch.cat([dec4, F.upsample(merge_pool3, dec4.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(merge_pool2, dec3.size()[2:], mode='bilinear')], 1))
-        dec1 = self.dec1(torch.cat([dec2, F.upsample(merge_pool1, dec2.size()[2:], mode='bilinear')], 1))
+        center = self.center(pool4)
+        dec4 = self.dec4(torch.cat([center, F.upsample(pool4, center.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([dec4, F.upsample(pool3, dec4.size()[2:], mode='bilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(pool2, dec3.size()[2:], mode='bilinear')], 1))
+        dec1 = self.dec1(torch.cat([dec2, F.upsample(pool1, dec2.size()[2:], mode='bilinear')], 1))
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
         return predict

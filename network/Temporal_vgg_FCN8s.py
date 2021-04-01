@@ -21,9 +21,24 @@ def get_upsampling_weight(in_channels, out_channels, kernel_size):
     weight[list(range(in_channels)), list(range(out_channels)), :, :] = filt
     return torch.from_numpy(weight).float()
 
-class FCN8s(nn.Module):
+class Feature_extractor(nn.Module):
+    def __init__(self):
+        super(Feature_extractor, self).__init__()
+        vgg = models.vgg16(pretrained=True)
+        features, classifier = list(vgg.features.children()), list(vgg.classifier.children())
+        self.features5 = nn.Sequential(*features)
+    def forward(self, x):
+        image_num = x.shape[1]
+        output = torch.tensor([]).cuda()
+        with torch.no_grad():
+            for i in range(image_num):
+                temp = self.features5(x[:,0:1,:,:,:].squeeze())
+                temp = temp.view(-1, 1, 512, 16, 16)
+                output = torch.cat((output, temp), dim = 1)
+            return output
+class Temporal_vgg_FCN8s(nn.Module):
     def __init__(self, num_classes):
-        super(FCN8s, self).__init__()
+        super(Temporal_vgg_FCN8s, self).__init__()
         vgg = models.vgg16(pretrained=True)
         features, classifier = list(vgg.features.children()), list(vgg.classifier.children())
 
@@ -35,7 +50,6 @@ class FCN8s(nn.Module):
         Spatial information of different layers' feature maps cannot be align exactly because of cropping, which is bad
         '''
         features[0].padding = (100, 100)
-
         self.features3 = nn.Sequential(*features[: 17])
         self.features4 = nn.Sequential(*features[17: 24])
         self.features5 = nn.Sequential(*features[24:])
@@ -46,7 +60,6 @@ class FCN8s(nn.Module):
         self.score_pool3.bias.data.zero_()
         self.score_pool4.weight.data.zero_()
         self.score_pool4.bias.data.zero_()
-
         fc6 = nn.Conv2d(512, 4096, kernel_size=7)
         fc6.weight.data.copy_(classifier[0].weight.data.view(4096, 512, 7, 7))
         fc6.bias.data.copy_(classifier[0].bias.data)
@@ -67,20 +80,45 @@ class FCN8s(nn.Module):
         self.upscore_pool4.weight.data.copy_(get_upsampling_weight(num_classes, num_classes, 4))
         self.upscore8.weight.data.copy_(get_upsampling_weight(num_classes, num_classes, 16))
 
-    def forward(self, x):
+    def forward(self, x, other_frame):
+        # pool3 = (256, 88, 88)
+        # pool4 = (512, 44, 44)
+        # pool5 = (512, 22, 22)
+        image_num = other_frame.shape[1]
+        output3 = torch.tensor([]).cuda()
+        output4 = torch.tensor([]).cuda()
+        output5 = torch.tensor([]).cuda()
+        for i in range(image_num):
+            temp = self.features3(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 256, 70, 77)
+            output3  = torch.cat((output3, temp), dim = 1)
+        for i in range(image_num):
+            temp = self.features4(output3[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 512, 35, 38)
+            output4  = torch.cat((output4, temp), dim = 1)
+        for i in range(image_num):
+            temp = self.features5(output4[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 512, 17, 19)
+            output5  = torch.cat((output5, temp), dim = 1)
+        x = x.squeeze(dim = 1)
         x_size = x.size()
         pool3 = self.features3(x)
         pool4 = self.features4(pool3)
         pool5 = self.features5(pool4)
-
-        score_fr = self.score_fr(pool5)
+        merge_pool3 = torch.cat((output3, pool3.unsqueeze(dim = 1)), dim = 1)
+        merge_pool4 = torch.cat((output4, pool4.unsqueeze(dim = 1)), dim = 1)
+        merge_pool5 = torch.cat((output5, pool5.unsqueeze(dim = 1)), dim = 1)
+        merge_pool3 = torch.mean(merge_pool3, dim = 1)
+        merge_pool4 = torch.mean(merge_pool4, dim = 1)
+        merge_pool5 = torch.mean(merge_pool5, dim = 1)
+        score_fr = self.score_fr(merge_pool5)
         upscore2 = self.upscore2(score_fr)
 
-        score_pool4 = self.score_pool4(0.01 * pool4)
+        score_pool4 = self.score_pool4(0.01 * merge_pool4)
         upscore_pool4 = self.upscore_pool4(score_pool4[:, :, 5: (5 + upscore2.size()[2]), 5: (5 + upscore2.size()[3])]
                                            + upscore2)
 
-        score_pool3 = self.score_pool3(0.0001 * pool3)
+        score_pool3 = self.score_pool3(0.0001 * merge_pool3)
         upscore8 = self.upscore8(score_pool3[:, :, 9: (9 + upscore_pool4.size()[2]), 9: (9 + upscore_pool4.size()[3])]
                                  + upscore_pool4)
         return (upscore8[:, :, 31: (31 + x_size[2]), 31: (31 + x_size[3])].contiguous())
