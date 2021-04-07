@@ -6,12 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn
 from torchvision import transforms as T
-from dataloader import get_loader, get_continuous_loader
-from eval import *
-from PIL import Image
 import imageio
 from mean_iou_evaluate import *
-from loss_func import *
 import imageio
 import cv2
 import ipdb
@@ -21,11 +17,16 @@ import argparse
 import time
 from matplotlib import cm as CM
 import copy
-##net work
-from FCN32s import *
-from HDC import *
-from FCN8s import *
-from T_FCN8s import *
+from network.Single_vgg_FCN8s import Single_vgg_FCN8s
+from network.Single_vgg_Unet import Single_vgg_Unet
+from network.Single_Res_Unet import Single_Res_Unet
+from network.Single_Nested_Unet import Single_Nested_Unet
+from network.Single_Double_Unet import Single_Double_Unet
+from network.Temporal_vgg_FCN8s import Temporal_vgg_FCN8s
+from network.Temporal_vgg_Unet import Temporal_vgg_Unet
+from network.Temporal_Res_Unet import Temporal_Res_Unet
+from train_src.train_code import train_single, train_continuous
+from train_src.dataloader import get_loader, get_continuous_loader
 def LISTDIR(path):
     out = os.listdir(path)
     out.sort()
@@ -44,17 +45,37 @@ def test(config, test_loader):
     threshold = config.threshold
     Sigmoid_func = nn.Sigmoid()
     if config.which_model == 1:
-        net = FCN32s(1)
-        print("FCN32s load!")
+        net = Single_vgg_FCN8s(1)
+        model_name = "Single_vgg__FCN8s"
+        print("Model Single_vgg__FCN8s")
     elif config.which_model == 2:
-        net = HDC(1)
-        print("HDC load")
+        net = Single_vgg_Unet(1)
+        model_name = "Single_vgg_Unet"
+        print("Model Single_vgg_Unet")
     elif config.which_model == 3:
-        net = FCN8s(1)
-        print("FCN 8S load")
+        net = Single_Res_Unet(1)
+        model_name = "Single_Res_Unet"
+        print("Model Single_Res_Unet")
+    elif config.which_model == 4:
+        net = Single_Nested_Unet(1)
+        model_name = "Single_Nested_Unet"
+        print("Model Single_Nested_Unet")
+    elif config.which_model == 5:
+        net = Single_Double_Unet(1)
+        model_name = "Single_Double_Unet"
+        print("Model Single_Double_Unet") 
+    elif config.which_model == 6:
+        net = Temporal_vgg_FCN8s(1)
+        model_name = "Temporal_vgg_FCN8s"
+        print("Model Temporal_vgg_FCN8s")
     elif config.which_model == 7:
-        net = T_FCN8s(1)
-        print("Model temporal Temporal_FCN8S")
+        net = Temporal_vgg_Unet(1)
+        model_name = "Temporal_vgg_Unet"
+        print("Model Temporal_vgg_Unet")
+    elif config.which_model == 8:
+        net = Temporal_Res_Unet(1)
+        model_name = "Temporal_Res_Unet"
+        print("Model Temporal_Res_Unet")
     net.load_state_dict(torch.load(config.model_path))
     net = net.cuda()
     net.eval()

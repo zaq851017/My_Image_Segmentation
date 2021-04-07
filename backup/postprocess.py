@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn
 from torchvision import transforms as T
-from dataloader import get_loader, get_continuous_loader
+from dataloader import get_loader
 from eval import *
 from PIL import Image
 import imageio
@@ -25,14 +25,14 @@ import copy
 from FCN32s import *
 from HDC import *
 from FCN8s import *
-from T_FCN8s import *
+
 def LISTDIR(path):
     out = os.listdir(path)
     out.sort()
     return out
 def frame2video(path):
     video_path = (path[:-6])
-    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.avi"), cv2.VideoWriter_fourcc(*'DIVX'), 12, (848, 368))
+    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.avi"), cv2.VideoWriter_fourcc(*'DIVX'), 12, (1024, 512))
     for frame_files in  LISTDIR(path):
         if frame_files[-3:] == "jpg":
             full_path = os.path.join(path, frame_files)
@@ -61,8 +61,6 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
 def test(config, test_loader):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
-    distance = 75
-    Sigmoid_func = nn.Sigmoid()
     if config.which_model == 1:
         net = FCN32s(1)
         print("FCN32s load!")
@@ -72,9 +70,6 @@ def test(config, test_loader):
     elif config.which_model == 3:
         net = FCN8s(1)
         print("FCN 8S load")
-    elif config.which_model == 7:
-        net = T_FCN8s(1)
-        print("Model temporal Temporal_FCN8S")
     net.load_state_dict(torch.load(config.model_path))
     net = net.cuda()
     net.eval()
@@ -88,14 +83,21 @@ def test(config, test_loader):
         temp_continue_list = [1] * len(test_loader)
         continue_list = []
         last_signal = 0
+        range_dict = {}
         start = 0
         end = -1
         last_film_name = ""
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            pn_frame = image[:,1:,:,:,:]
-            frame = image[:,:1,:,:,:]
-            output = net(frame, pn_frame).squeeze(dim = 1)
-            output = Sigmoid_func(output)
+            now_filename = file_name[0].split("/")[-3]
+            if now_filename != last_film_name and last_film_name in range_dict:
+                range_dict[last_film_name] = [start, end]
+            if now_filename != last_film_name and now_filename not in range_dict:
+                range_dict[now_filename] = [0, 0]
+                start = end+1
+            end += 1
+            last_film_name = now_filename
+            image = image.cuda()
+            output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
@@ -110,6 +112,7 @@ def test(config, test_loader):
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
+        range_dict[last_film_name] = [start, end]
         postprocess_continue_list = copy.deepcopy(continue_list)
         start = 0
         end = 0
@@ -201,39 +204,38 @@ def test(config, test_loader):
                 elif i < len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][0][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][0][1]))
-                    if abs_x >= distance or abs_y >= distance:
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 2*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][1][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][1][1]))
-                    if abs_x >= distance or abs_y >= distance:
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 3*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][2][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][2][1]))
-                    if abs_x >= distance or abs_y >= distance:
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 4*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][3][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][3][1]))
-                    if abs_x >= distance or abs_y >= distance:
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 else:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][4][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][4][1]))
-                    if abs_x >= distance or abs_y >= distance:
+                    if abs_x >= 75 or abs_y >= 75:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-        """
         range_list = [*range_dict.values()]
         for (x,y) in range_list:
             start = x
@@ -266,9 +268,8 @@ def test(config, test_loader):
         save_img_list = {}
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             if i in save_list:
-                pn_frame = image[:,1:,:,:,:]
-                frame = image[:,:1,:,:,:]
-                output = net(frame, pn_frame).squeeze(dim = 1)
+                image = image.cuda()
+                output = net(image)
                 SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
                 SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
                 if np.sum(SR==1) <= 1000:
@@ -282,16 +283,17 @@ def test(config, test_loader):
                     adjustment_list[last_num: i+1] = [i+1]*(i+1-last_num)
                 else:
                     save_img_list[i] = SR
-        """
+        import ipdb; ipdb.set_trace()
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            pn_frame = image[:,1:,:,:,:]
-            frame = image[:,:1,:,:,:]
-            output = net(frame, pn_frame).squeeze(dim = 1)
-            output = Sigmoid_func(output)
+            image = image.cuda()
+            output = net(image)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
-            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+            if adjustment_list[i] == 0 or  (adjustment_list[i] == 1 and final_mask_exist[i] == 0):
+                SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+            else:
+                SR = save_img_list[adjustment_list[i]]
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
@@ -330,7 +332,7 @@ def test(config, test_loader):
                     os.system("rm -r "+full_path_4)
 def main(config):
     # parameter setting
-    test_loader = get_continuous_loader(image_path = config.input_path,
+    test_loader = get_loader(image_path = config.input_path,
                             batch_size = 1,
                             mode = 'test',
                             augmentation_prob = 0.,

@@ -6,12 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn
 from torchvision import transforms as T
-from dataloader import get_loader
-from eval import *
 from PIL import Image
 import imageio
-from mean_iou_evaluate import *
-from loss_func import *
 import imageio
 import cv2
 import ipdb
@@ -21,18 +17,23 @@ import argparse
 import time
 from matplotlib import cm as CM
 import copy
-##net work
-from FCN32s import *
-from HDC import *
-from FCN8s import *
-
+from network.Single_vgg_FCN8s import Single_vgg_FCN8s
+from network.Single_vgg_Unet import Single_vgg_Unet
+from network.Single_Res_Unet import Single_Res_Unet
+from network.Single_Nested_Unet import Single_Nested_Unet
+from network.Single_Double_Unet import Single_Double_Unet
+from network.Temporal_vgg_FCN8s import Temporal_vgg_FCN8s
+from network.Temporal_vgg_Unet import Temporal_vgg_Unet
+from network.Temporal_Res_Unet import Temporal_Res_Unet
+from train_src.train_code import train_single, train_continuous
+from train_src.dataloader import get_loader, get_continuous_loader
 def LISTDIR(path):
     out = os.listdir(path)
     out.sort()
     return out
 def frame2video(path):
     video_path = (path[:-6])
-    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.avi"), cv2.VideoWriter_fourcc(*'DIVX'), 12, (1024, 512))
+    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (848, 368))
     for frame_files in  LISTDIR(path):
         if frame_files[-3:] == "jpg":
             full_path = os.path.join(path, frame_files)
@@ -49,27 +50,46 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
         if index_sort.shape[0] > 2:
             for ll in index_sort[2:]:
                 labels[ labels == ll ] = 0
-        """
-        import ipdb; ipdb.set_trace()
-        if stats.shape[0] > 2:
-            if stats[1][4] <= stats[2][4]:
-                labels[labels == 1] = 0
-            elif stats[1][4] > stats[2][4]:
-                labels[labels == 2] = 0
-        """
         return np.array(labels, dtype=np.uint8)
 def test(config, test_loader):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
+    distance = 75
+    Sigmoid_func = nn.Sigmoid()
     if config.which_model == 1:
-        net = FCN32s(1)
-        print("FCN32s load!")
+        net = Single_vgg_FCN8s(1)
+        model_name = "Single_vgg__FCN8s"
+        print("Model Single_vgg_FCN8s")
     elif config.which_model == 2:
-        net = HDC(1)
-        print("HDC load")
+        net = Single_vgg_Unet(1)
+        model_name = "Single_vgg_Unet"
+        print("Model Single_vgg_Unet")
     elif config.which_model == 3:
-        net = FCN8s(1)
-        print("FCN 8S load")
+        net = Single_Res_Unet(1)
+        model_name = "Single_Res_Unet"
+        print("Model Single_Res_Unet")
+    elif config.which_model == 4:
+        net = Single_Nested_Unet(1)
+        model_name = "Single_Nested_Unet"
+        print("Model Single_Nested_Unet")
+    elif config.which_model == 5:
+        net = Single_Double_Unet(1)
+        model_name = "Single_Double_Unet"
+        print("Model Single_Double_Unet") 
+    elif config.which_model == 6:
+        net = Temporal_vgg_FCN8s(1)
+        model_name = "Temporal_vgg_FCN8s"
+        print("Model Temporal_vgg_FCN8s")
+    elif config.which_model == 7:
+        net = Temporal_vgg_Unet(1)
+        model_name = "Temporal_vgg_Unet"
+        print("Model Temporal_vgg_Unet")
+    elif config.which_model == 8:
+        net = Temporal_Res_Unet(1)
+        model_name = "Temporal_Res_Unet"
+        print("Model Temporal_Res_Unet")
+    elif config.which_model == 0:
+        print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
     net = net.cuda()
     net.eval()
@@ -83,21 +103,18 @@ def test(config, test_loader):
         temp_continue_list = [1] * len(test_loader)
         continue_list = []
         last_signal = 0
-        range_dict = {}
         start = 0
         end = -1
         last_film_name = ""
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            now_filename = file_name[0].split("/")[-3]
-            if now_filename != last_film_name and last_film_name in range_dict:
-                range_dict[last_film_name] = [start, end]
-            if now_filename != last_film_name and now_filename not in range_dict:
-                range_dict[now_filename] = [0, 0]
-                start = end+1
-            end += 1
-            last_film_name = now_filename
-            image = image.cuda()
-            output = net(image)
+            if config.continuous == 0:
+                image = image.cuda()
+                output = net(image)
+            elif config.continuous == 1:
+                pn_frame = image[:,1:,:,:,:]
+                frame = image[:,:1,:,:,:]
+                output = net(frame, pn_frame).squeeze(dim = 1)
+            output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
@@ -112,7 +129,6 @@ def test(config, test_loader):
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
-        range_dict[last_film_name] = [start, end]
         postprocess_continue_list = copy.deepcopy(continue_list)
         start = 0
         end = 0
@@ -204,96 +220,51 @@ def test(config, test_loader):
                 elif i < len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][0][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][0][1]))
-                    if abs_x >= 75 or abs_y >= 75:
+                    if abs_x >= distance or abs_y >= distance:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 2*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][1][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][1][1]))
-                    if abs_x >= 75 or abs_y >= 75:
+                    if abs_x >= distance or abs_y >= distance:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 3*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][2][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][2][1]))
-                    if abs_x >= 75 or abs_y >= 75:
+                    if abs_x >= distance or abs_y >= distance:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 elif i < 4*len(middle_list[key]) / 5:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][3][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][3][1]))
-                    if abs_x >= 75 or abs_y >= 75:
+                    if abs_x >= distance or abs_y >= distance:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
                 else:
                     abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][4][0]))
                     abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][4][1]))
-                    if abs_x >= 75 or abs_y >= 75:
+                    if abs_x >= distance or abs_y >= distance:
                         final_mask_exist.append(0)
                     else:
                         final_mask_exist.append(1)
-        range_list = [*range_dict.values()]
-        for (x,y) in range_list:
-            start = x
-            end = y
-            for i in range(start, end+1, 1):
-                if postprocess_continue_list[i] == 0:
-                    start +=1
-                else:
-                    break
-            for i in range(end, start-1, -1):
-                if postprocess_continue_list[i] == 0:
-                    end -= 1
-                else:
-                    break
-            temp = (end+1) - start
-            postprocess_continue_list[start: end+1] = [1] *temp
-        adjustment_list = [0] * len(final_mask_exist)
-        for i in range(len(final_mask_exist)):
-            if postprocess_continue_list[i] == 1 and final_mask_exist[i] == 0:
-                adjustment_list[i] = 1
-        check_start = False
-        temp_record = 0
-        save_list = []
-        for i in range(len(adjustment_list)-1, -1, -1):
-            if adjustment_list[i] == 0:
-                temp_record = i
-            elif adjustment_list[i] == 1:
-                save_list.insert(0, temp_record)
-                adjustment_list[i] = temp_record
-        save_img_list = {}
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            if i in save_list:
+            if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
-                SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
-                if np.sum(SR==1) <= 1000:
-                    for j in range(len(save_list)):
-                        if save_list[j] == i:
-                            save_list[j] = i+1
-                    for j in range(len(adjustment_list)):
-                        if adjustment_list[j] == i:
-                            adjustment_list[j] = i+1
-                    last_num = [m for m,x in enumerate(adjustment_list) if x == i+1][-1]
-                    adjustment_list[last_num: i+1] = [i+1]*(i+1-last_num)
-                else:
-                    save_img_list[i] = SR
-        import ipdb; ipdb.set_trace()
-        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            image = image.cuda()
-            output = net(image)
+            elif config.continuous == 1:
+                pn_frame = image[:,1:,:,:,:]
+                frame = image[:,:1,:,:,:]
+                output = net(frame, pn_frame).squeeze(dim = 1)
+            output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
-            if adjustment_list[i] == 0 or  (adjustment_list[i] == 1 and final_mask_exist[i] == 0):
-                SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
-            else:
-                SR = save_img_list[adjustment_list[i]]
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
             heatmap = np.uint8(255 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heat_img = heatmap*0.9+origin_crop_image
@@ -331,21 +302,28 @@ def test(config, test_loader):
                     os.system("rm -r "+full_path_3)
                     os.system("rm -r "+full_path_4)
 def main(config):
-    # parameter setting
-    test_loader = get_loader(image_path = config.input_path,
-                            batch_size = 1,
-                            mode = 'test',
-                            augmentation_prob = 0.,
-                            shffule_yn = False)
+    if config.continuous == 0:
+        test_loader = get_loader(image_path = config.input_path,
+                                batch_size = 1,
+                                mode = 'test',
+                                augmentation_prob = 0.,
+                                shffule_yn = False)
+    elif config.continuous == 1:
+        test_loader = get_continuous_loader(image_path = config.input_path,
+                                batch_size = 1,
+                                mode = 'test',
+                                augmentation_prob = 0.,
+                                shffule_yn = False)
     test(config, test_loader)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, default="")
-    parser.add_argument('--which_model', type=int, default=3)
+    parser.add_argument('--which_model', type=int, default=0)
     parser.add_argument('--output_path', type=str, default="")
     parser.add_argument('--input_path', type=str, default="")
     parser.add_argument('--threshold', type=float, default=0.2)
     parser.add_argument('--keep_image', type= int, default=1)
+    parser.add_argument('--continuous', type=int, default=0)
     config = parser.parse_args()
     main(config)
