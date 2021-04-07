@@ -17,14 +17,11 @@ import argparse
 import time
 from matplotlib import cm as CM
 import copy
-from network.Single_vgg_FCN8s import Single_vgg_FCN8s
-from network.Single_vgg_Unet import Single_vgg_Unet
-from network.Single_Res_Unet import Single_Res_Unet
-from network.Single_Nested_Unet import Single_Nested_Unet
-from network.Single_Double_Unet import Single_Double_Unet
-from network.Temporal_vgg_FCN8s import Temporal_vgg_FCN8s
-from network.Temporal_vgg_Unet import Temporal_vgg_Unet
-from network.Temporal_Res_Unet import Temporal_Res_Unet
+from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
+from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
+from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet
+from network.Nested_Unet import Single_Nested_Unet
+from network.Double_Unet import Single_Double_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 def LISTDIR(path):

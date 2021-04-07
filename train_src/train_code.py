@@ -56,7 +56,6 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 pn_mask = mask_list[:,1:,:,:]
                 output = net(frame, pn_frame).squeeze(dim = 1)
                 loss = criterion(output, mask.float())
-                train_loss += loss.item()
                 output = Sigmoid_func(output)
                 SR = torch.where(output > threshold, 1, 0).cpu()
                 GT = mask.cpu()
@@ -69,7 +68,7 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
             if f1 >= best_score:
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch)+"_Score="+str(round(f1,3))+".pt")
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
                 #net_save_path = config.save_model_path + now_time + model_name +"/Epoch="+str(epoch)+"_Score="+str(round(f1,3))+".pt"
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
@@ -138,7 +137,7 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
             if f1 >= best_score:
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch)+"_Score="+str(round(f1,3))+".pt")
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)

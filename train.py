@@ -15,14 +15,11 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 ##net work
-from network.Single_vgg_FCN8s import Single_vgg_FCN8s
-from network.Single_vgg_Unet import Single_vgg_Unet
-from network.Single_Res_Unet import Single_Res_Unet
-from network.Single_Nested_Unet import Single_Nested_Unet
-from network.Single_Double_Unet import Single_Double_Unet
-from network.Temporal_vgg_FCN8s import Temporal_vgg_FCN8s
-from network.Temporal_vgg_Unet import Temporal_vgg_Unet
-from network.Temporal_Res_Unet import Temporal_Res_Unet
+from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
+from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
+from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet
+from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet
+from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 import segmentation_models_pytorch as smp
@@ -64,6 +61,14 @@ def main(config):
         net = Temporal_Res_Unet(1)
         model_name = "Temporal_Res_Unet"
         print("Model Temporal_Res_Unet")
+    elif config.which_model == 9:
+        net = Temporal_Nested_Unet(1)
+        model_name = "Temporal_Nested_Unet"
+        print("Model Temporal_Nested_Unet")
+    elif config.which_model == 10:
+        net = Temporal_Double_Unet(1)
+        model_name = "Temporal_Double_Unet"
+        print("Model Temporal_Double_Unet") 
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
