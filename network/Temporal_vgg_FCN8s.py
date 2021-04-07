@@ -49,7 +49,6 @@ class Temporal_vgg_FCN8s(nn.Module):
         Note that the cropped part corresponds to a part of the 100 padding
         Spatial information of different layers' feature maps cannot be align exactly because of cropping, which is bad
         '''
-        features[0].padding = (100, 100)
         self.features3 = nn.Sequential(*features[: 17])
         self.features4 = nn.Sequential(*features[17: 24])
         self.features5 = nn.Sequential(*features[24:])
@@ -72,7 +71,6 @@ class Temporal_vgg_FCN8s(nn.Module):
         self.score_fr = nn.Sequential(
             fc6, nn.ReLU(inplace=True), nn.Dropout(), fc7, nn.ReLU(inplace=True), nn.Dropout(), score_fr
         )
-
         self.upscore2 = nn.ConvTranspose2d(num_classes, num_classes, kernel_size=4, stride=2, bias=False)
         self.upscore_pool4 = nn.ConvTranspose2d(num_classes, num_classes, kernel_size=4, stride=2, bias=False)
         self.upscore8 = nn.ConvTranspose2d(num_classes, num_classes, kernel_size=16, stride=8, bias=False)
@@ -121,4 +119,5 @@ class Temporal_vgg_FCN8s(nn.Module):
         score_pool3 = self.score_pool3(0.0001 * merge_pool3)
         upscore8 = self.upscore8(score_pool3[:, :, 9: (9 + upscore_pool4.size()[2]), 9: (9 + upscore_pool4.size()[3])]
                                  + upscore_pool4)
-        return (upscore8[:, :, 31: (31 + x_size[2]), 31: (31 + x_size[3])].contiguous())
+        predict = F.upsample(upscore8, x.size()[2:], mode='bilinear')
+        return predict
