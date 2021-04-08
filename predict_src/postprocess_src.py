@@ -184,6 +184,14 @@ def test_w_postprocess(config, test_loader):
         net = Temporal_Res_Unet(1)
         model_name = "Temporal_Res_Unet"
         print("Model Temporal_Res_Unet")
+    elif config.which_model == 9:
+        net = Temporal_Nested_Unet(1)
+        model_name = "Temporal_Nested_Unet"
+        print("Model Temporal_Nested_Unet")
+    elif config.which_model == 10:
+        net = Temporal_Double_Unet(1)
+        model_name = "Temporal_Double_Unet"
+        print("Model Temporal_Double_Unet") 
     elif config.which_model == 0:
         print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
