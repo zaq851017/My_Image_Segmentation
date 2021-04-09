@@ -116,3 +116,107 @@ class Temporal_Res_Unet(nn.Module):
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
         return predict
+class _Segmentation_Module(nn.Module):
+    def __init__(self, num_classes):
+        super(_Segmentation_Module, self).__init__()
+        warnings.filterwarnings('ignore')
+        res = models.resnet34(pretrained=True)
+        res_feature = nn.Sequential(*list(res.children())[:-1])
+        self.features1 = nn.Sequential(*res_feature[:5])
+        self.features2 = nn.Sequential(*res_feature[5:6])
+        self.features3 = nn.Sequential(*res_feature[6:7])
+        self.features4 = nn.Sequential(*res_feature[7:8])
+        self.center = _DecoderBlock(512, 1024, 512)
+        self.dec4 = _DecoderBlock(1024, 512, 256)
+        self.dec3 = _DecoderBlock(512, 256, 128)
+        self.dec2 = _DecoderBlock(256, 128, 64)
+        self.dec1 = _DecoderBlock(128, 64, 32)
+        self.final = nn.Conv2d(32, num_classes, kernel_size=1)
+    def forward(self, x):
+        x = x.squeeze(dim = 1)
+        pool1 = self.features1(x)
+        pool2 = self.features2(pool1)
+        pool3 = self.features3(pool2)
+        pool4 = self.features4(pool3)
+        center = self.center(pool4)
+        dec4 = self.dec4(torch.cat([center, F.upsample(pool4, center.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([dec4, F.upsample(pool3, dec4.size()[2:], mode='bilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(pool2, dec3.size()[2:], mode='bilinear')], 1))
+        dec1 = self.dec1(torch.cat([dec2, F.upsample(pool1, dec2.size()[2:], mode='bilinear')], 1))
+        final = self.final(dec1)
+        predict = F.upsample(final, x.size()[2:], mode='bilinear')
+        return predict
+class _Feature_Extractor(nn.Module):
+    def __init__(self):
+        super(_Feature_Extractor, self).__init__()
+        warnings.filterwarnings('ignore')
+        res = models.resnet34(pretrained=True)
+        self.res_feature = nn.Sequential(*list(res.children())[:-2])
+    def forward(self, x):
+        x = x.squeeze(dim = 1)
+        feature = self.res_feature(x)
+        return feature
+class _Temporal_Module(nn.Module):
+    def __init__(self, num_classes):
+        super(_Temporal_Module, self).__init__()
+        self.res_backbone = _Feature_Extractor()
+        res = models.resnet34(pretrained=True)
+        res_feature = nn.Sequential(*list(res.children())[:-1])
+        self.features1 = nn.Sequential(*res_feature[:5])
+        self.features2 = nn.Sequential(*res_feature[5:6])
+        self.features3 = nn.Sequential(*res_feature[6:7])
+        self.features4 = nn.Sequential(*res_feature[7:8])
+        self.center = _DecoderBlock(512, 1024, 512)
+        self.dec4 = _DecoderBlock(1024, 512, 256)
+        self.dec3 = _DecoderBlock(512, 256, 128)
+        self.dec2 = _DecoderBlock(256, 128, 64)
+        self.dec1 = _DecoderBlock(128, 64, 32)
+        self.final = nn.Conv2d(32, num_classes, kernel_size=1)
+    def forward(self, x, other_frame):
+        frame_feature = self.res_backbone(x)
+        x = x.squeeze(dim = 1)
+        image_num = other_frame.shape[1]
+        output1 = torch.tensor([]).cuda()
+        output2 = torch.tensor([]).cuda()
+        output3 = torch.tensor([]).cuda()
+        output4 = torch.tensor([]).cuda()
+        for i in range(image_num):
+            temp = self.features1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 64, 92, 106)
+            output1  = torch.cat((output1, temp), dim = 1) 
+        for i in range(image_num):
+            temp = self.features2(output1[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 128, 46, 53)
+            output2  = torch.cat((output2, temp), dim = 1)
+        for i in range(image_num):
+            temp = self.features3(output2[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 256, 23, 27)
+            output3  = torch.cat((output3, temp), dim = 1)
+        for i in range(image_num):
+            temp = self.features4(output3[:,i:i+1,:,:,:].squeeze(dim = 1))
+            temp = temp.view(-1, 1, 512, 12, 14)
+            output4  = torch.cat((output4, temp), dim = 1)
+        merge_pool1 = torch.mean(output1, dim = 1)
+        merge_pool2 = torch.mean(output2, dim = 1)
+        merge_pool3 = torch.mean(output3, dim = 1)
+        output4 = torch.cat((output4, frame_feature.unsqueeze(dim = 1)), dim = 1)
+        merge_pool4 = torch.mean(output4, dim = 1)
+        center = self.center(merge_pool4)
+        dec4 = self.dec4(torch.cat([center, F.upsample(merge_pool4, center.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([dec4, F.upsample(merge_pool3, dec4.size()[2:], mode='bilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(merge_pool2, dec3.size()[2:], mode='bilinear')], 1))
+        dec1 = self.dec1(torch.cat([dec2, F.upsample(merge_pool1, dec2.size()[2:], mode='bilinear')], 1))
+        final = self.final(dec1)
+        predict = F.upsample(final, x.size()[2:], mode='bilinear')
+        return predict
+
+class Two_level_Res_Unet(nn.Module):
+    def __init__(self, num_classes):
+        super(Two_level_Res_Unet, self).__init__()
+        warnings.filterwarnings('ignore')
+        self.Segmentation_Module = _Segmentation_Module(1)
+        self.Temporal_Module = _Temporal_Module(1)
+    def forward(self, x, other_frame):
+        temporal_result = self.Temporal_Module(x, other_frame)
+        frame_result = self.Segmentation_Module(x)
+        return (temporal_result + frame_result) /2

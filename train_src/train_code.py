@@ -65,7 +65,7 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
             logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
-            if f1 >= best_score:
+            if f1 >= best_score or epoch % 5 == 0:
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
                 net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
@@ -134,7 +134,7 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
             logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
-            if f1 >= best_score:
+            if f1 >= best_score or epoch % 5 == 0:
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
                 net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")

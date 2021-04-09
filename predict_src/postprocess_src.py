@@ -210,6 +210,7 @@ def test_w_postprocess(config, test_loader):
         start = 0
         end = -1
         last_film_name = ""
+        bound_list = []
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
@@ -229,10 +230,13 @@ def test_w_postprocess(config, test_loader):
                 continue_list.append(1)
             dict_path = file_name[0].split("/")[-3]
             if dict_path not in mask_img:
+                if i != 0:
+                    bound_list.append(i-1)
                 mask_img[dict_path] = []
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
+        bound_list.append(i)
         postprocess_continue_list = copy.deepcopy(continue_list)
         start = 0
         end = 0
@@ -242,7 +246,7 @@ def test_w_postprocess(config, test_loader):
                 start = i
                 check_start = True
                 continue
-            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1:
+            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
                 end = i
                 continue
             elif continue_list[i] == 0 and check_start == True:
@@ -253,7 +257,7 @@ def test_w_postprocess(config, test_loader):
                     postprocess_continue_list[start: end+1] = [0] * temp
                 check_start = False
                 continue
-            elif continue_list[i] == 1 and i == len(continue_list)-1:
+            elif continue_list[i] == 1 and i in  bound_list:
                 end = i
                 temp = (end+1) - start
                 if temp < 0:
@@ -261,6 +265,7 @@ def test_w_postprocess(config, test_loader):
                 if temp <= 30:
                     postprocess_continue_list[start: end+1] = [0] * temp
                 check_start = False
+        import ipdb; ipdb.set_trace()
         middle_list = {}
         for key in mask_img:
             middle_list[key] = []
