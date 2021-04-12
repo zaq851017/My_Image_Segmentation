@@ -19,7 +19,7 @@ from matplotlib import cm as CM
 import copy
 from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
-from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet
+from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet
 from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
 from train_src.train_code import train_single, train_continuous
@@ -90,7 +90,11 @@ def test_wo_postprocess(config, test_loader):
     elif config.which_model == 10:
         net = Temporal_Double_Unet(1)
         model_name = "Temporal_Double_Unet"
-        print("Model Temporal_Double_Unet") 
+        print("Model Temporal_Double_Unet")
+    elif config.which_model == 11:
+        net = Two_level_Res_Unet(1)
+        model_name = "Two_level_Res_Unet"
+        print("Model Two_level_Res_Unet")
     elif config.which_model == 0:
         print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
@@ -192,6 +196,10 @@ def test_w_postprocess(config, test_loader):
         net = Temporal_Double_Unet(1)
         model_name = "Temporal_Double_Unet"
         print("Model Temporal_Double_Unet") 
+    elif config.which_model == 11:
+        net = Two_level_Res_Unet(1)
+        model_name = "Two_level_Res_Unet"
+        print("Model Two_level_Res_Unet")
     elif config.which_model == 0:
         print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
@@ -265,7 +273,6 @@ def test_w_postprocess(config, test_loader):
                 if temp <= 30:
                     postprocess_continue_list[start: end+1] = [0] * temp
                 check_start = False
-        import ipdb; ipdb.set_trace()
         middle_list = {}
         for key in mask_img:
             middle_list[key] = []

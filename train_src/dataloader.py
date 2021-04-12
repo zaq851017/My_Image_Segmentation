@@ -156,7 +156,11 @@ class Continuos_Image(data.Dataset):
         self.mode = mode
         self.augmentation_prob = prob
         self.RotationDegree = [0,90,180,270]
-        self.continuous_frame_num = [5, 10, 15]
+        self.continuous_frame_num = []
+        for i in range(4):
+            self.continuous_frame_num.append(i+1)
+        print("temporal frame", self.continuous_frame_num)
+        #self.continuous_frame_num = [1, 2, 3, 4, 5]
         if mode == "train" or mode == "valid":
             self.image_paths = {}
             self.mask_paths = {}
