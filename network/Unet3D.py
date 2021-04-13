@@ -81,5 +81,5 @@ class UNet_3D(nn.Module):
         concat_3 = torch.cat([trans_3, down1], dim=1)
         up_3 = self.up_3(concat_3)
         predict = self.out(up_3)
-        result = torch.mean(predict, dim = 2)
-        return result
+        #result = torch.mean(predict, dim = 2)
+        return predict

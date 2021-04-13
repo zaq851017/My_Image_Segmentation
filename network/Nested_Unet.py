@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import warnings
+from network.Unet3D import UNet_3D
 __all__ = ['UNet', 'NestedUNet']
 
 
@@ -133,7 +134,25 @@ class Single_Nested_Unet(nn.Module):
         else:
             output = self.final(x0_4)
             return output
-
+class _Temporal_Module(nn.Module):
+    def __init__(self, num_classes):
+        super(_Temporal_Module, self).__init__()
+        self.n_classes = num_classes
+        self.ED = UNet_3D(1)
+    def forward(self, x, other_frame):
+        other_frame = other_frame.transpose(1, 2).contiguous()
+        temporal_result = self.ED(other_frame)
+        return temporal_result
+class Two_Level_Nested_Unet(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        warnings.filterwarnings('ignore')
+        self.Temporal_Module = _Temporal_Module(num_classes)
+        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = 8)
+    def forward(self, input, other_frame):
+        temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
+        predict = self.Segmentation_Module(temporal_mask)
+        return predict
 class Temporal_Nested_Unet(nn.Module):
     def __init__(self, num_classes, input_channels=3, deep_supervision=False, **kwargs):
         super().__init__()

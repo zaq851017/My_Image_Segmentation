@@ -18,7 +18,7 @@ import argparse
 from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
 from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet
+from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet, Two_Level_Nested_Unet
 from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
@@ -73,6 +73,10 @@ def main(config):
         net = Two_level_Res_Unet(1)
         model_name = "Two_level_Res_Unet"
         print("Model Two_level_Res_Unet")
+    elif config.which_model == 12:
+        net = Two_Level_Nested_Unet(1)
+        model_name = "Two_Level_Nested_Unet"
+        print("Model Two_Level_Nested_Unet")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -90,7 +94,7 @@ def main(config):
         train_loader = get_loader(image_path = "Medical_data/train/",
                                 batch_size = BATCH_SIZE,
                                 mode = 'train',
-                                augmentation_prob = 0.,
+                                augmentation_prob = config.augmentation_prob,
                                 shffule_yn = True)
         valid_loader = get_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
@@ -108,7 +112,7 @@ def main(config):
         train_loader = get_continuous_loader(image_path = "Medical_data/train/", 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
-                            augmentation_prob = 0.,
+                            augmentation_prob = config.augmentation_prob,
                             shffule_yn = True)
         valid_loader = get_continuous_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
@@ -133,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_model_path', type=str, default="./My_Image_Segmentation/models/")
     parser.add_argument('--best_score', type=float, default=0.7)
     parser.add_argument('--threshold', type=float, default=0.7)
+    parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_image', type=int, default=0)
     config = parser.parse_args()

@@ -25,6 +25,34 @@ class _DecoderBlock(nn.Module):
 
     def forward(self, x):
         return self.decode(x)
+class Attention_block(nn.Module):
+    def __init__(self,F_g,F_l,F_int):
+        super(Attention_block,self).__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(F_g, F_int, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(F_int)
+            )
+        
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_l, F_int, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1,stride=1,padding=0,bias=True),
+            nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+        
+        self.relu = nn.ReLU(inplace=True)
+        
+    def forward(self,g,x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.relu(g1+x1)
+        psi = self.psi(psi)
+
+        return x*psi
 class Single_Res_Unet(nn.Module):
     def __init__(self, num_classes):
         super(Single_Res_Unet, self).__init__()
@@ -36,12 +64,20 @@ class Single_Res_Unet(nn.Module):
         self.features3 = nn.Sequential(*res_feature[6:7])
         self.features4 = nn.Sequential(*res_feature[7:8])
         self.center = _DecoderBlock(2048, 4096, 2048)
+        self.Att4 = Attention_block(F_g=2048,F_l=2048,F_int=1024)
         self.dec4 = _DecoderBlock(4096, 2048, 1024)
+        self.Att3 = Attention_block(F_g=1024,F_l=1024,F_int=512)
         self.dec3 = _DecoderBlock(2048, 1024, 512)
+        self.Att2 = Attention_block(F_g=512,F_l=512,F_int=256)
         self.dec2 = _DecoderBlock(1024, 512, 256)
+        self.Att1 = Attention_block(F_g=256,F_l=256,F_int=128)
         self.dec1 = _DecoderBlock(512, 256, 128)
         self.final = nn.Conv2d(128, num_classes, kernel_size=1)
     def forward(self, x):
+        ## pool1 = (256, 92, 106)
+        ## pool2 = (512, 46, 53)
+        ## pool3 = (1024, 23, 27)
+        ## pool4 = (2048, 12, 14)
         x = x.squeeze(dim = 1)
         x_size = x.size()
         pool1 = self.features1(x)
@@ -49,10 +85,18 @@ class Single_Res_Unet(nn.Module):
         pool3 = self.features3(pool2)
         pool4 = self.features4(pool3)
         center = self.center(pool4)
-        dec4 = self.dec4(torch.cat([center, F.upsample(pool4, center.size()[2:], mode='bilinear')], 1))
-        dec3 = self.dec3(torch.cat([dec4, F.upsample(pool3, dec4.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(pool2, dec3.size()[2:], mode='bilinear')], 1))
-        dec1 = self.dec1(torch.cat([dec2, F.upsample(pool1, dec2.size()[2:], mode='bilinear')], 1))
+        pool4 = F.upsample(pool4, center.size()[2:], mode='bilinear')
+        att4 = self.Att4(g = center, x= pool4)
+        dec4 = self.dec4(torch.cat((center, att4),1))
+        pool3 = F.upsample(pool3, dec4.size()[2:], mode='bilinear')
+        att3 = self.Att3(g = dec4, x= pool3)
+        dec3 = self.dec3(torch.cat((dec4, att3),1))
+        pool2 = F.upsample(pool2, dec3.size()[2:], mode='bilinear')
+        att2 = self.Att2(g = dec3, x= pool2)
+        dec2 = self.dec2(torch.cat((dec3, att2),1))
+        pool1 = F.upsample(pool1, dec2.size()[2:], mode='bilinear')
+        att1 = self.Att1(g = dec2, x= pool1)
+        dec1 = self.dec1(torch.cat((dec2, att1),1))
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
         return predict
@@ -160,7 +204,6 @@ class _Temporal_Module(nn.Module):
     def __init__(self, num_classes):
         super(_Temporal_Module, self).__init__()
         self.n_classes = num_classes
-        #self.res_backbone = _Feature_Extractor()
         self.ED = UNet_3D(1)
     def forward(self, x, other_frame):
         #frame_feature = self.res_backbone(x)

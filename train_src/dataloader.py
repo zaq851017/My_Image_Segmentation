@@ -29,15 +29,12 @@ def preprocess_img(image):
 def preprocess_mask(mask):
     mask = mask.resize((720, 540))
     mask = mask.crop((150,70,574,438))
-    #mask = mask.resize((512, 512))
     mask = np.array(mask)
     mask = label_mask(mask)
     return mask
 def test_preprocess_img(image):
     image = image.resize((720, 540))
     image = image.crop((150,70,574,438))
-    ## image = (424, 368)
-    #image = image.resize((512, 512))
     crop_origin_image = image
     Transform = []
     Transform.append(T.ToTensor())
@@ -102,41 +99,21 @@ class ImageFolder(data.Dataset):
             mask_path = self.mask_paths[index]
             image = Image.open(image_path).convert('RGB')
             mask = Image.open(mask_path).convert("L")
-            """
-            image = image.resize((720, 540))
-            image = image.crop((150,70,574,438))
-            mask = mask.resize((720, 540))
-            mask = mask.crop((150,70,574,438))
-            image = image.resize((512, 512))
-            mask = mask.resize((512, 512))
-            mask = np.array(mask)
-            mask = label_mask(mask)
-            Transform = []
-            Transform.append(T.ToTensor())
-            Transform = T.Compose(Transform)
-            image = Transform(image)
-            Norm_ = T.Normalize((0.486, 0.456, 0.406), (0.229, 0.224, 0.225))
-            image = Norm_(image)
-            """
             image = preprocess_img(image)
             mask = preprocess_mask(mask)
-            return image, torch.tensor(mask, dtype=torch.long)    
+            mask = torch.tensor(mask, dtype=torch.long) 
+            if self.augmentation_prob > np.random.rand():
+                transform = T.Compose([
+                T.RandomHorizontalFlip(p = 1.0),
+                T.RandomVerticalFlip(p = 1.0),
+                ])
+                image = transform(image)
+                mask = transform(mask)
+            return image, mask    
         if self.mode == "test":
             file_name = self.image_paths[index]
             image_path = self.image_paths[index]
             image = Image.open(image_path).convert('RGB')
-            """
-            image = image.resize((720, 540))
-            image = image.crop((150,70,574,438))
-            image = image.resize((512, 512))
-            crop_origin_image = image
-            Transform = []
-            Transform.append(T.ToTensor())
-            Transform = T.Compose(Transform)
-            image = Transform(image)
-            Norm_ = T.Normalize((0.486, 0.456, 0.406), (0.229, 0.224, 0.225))
-            image = Norm_(image)
-            """
             crop_origin_image, image = test_preprocess_img(image)
             return  np.array(crop_origin_image), file_name, image
             
