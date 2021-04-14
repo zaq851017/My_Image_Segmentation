@@ -31,7 +31,6 @@ class UNet_3D(nn.Module):
         self.in_dim = 3
         self.out_dim = num_class
         activation = nn.ReLU()
-        
         # Down sampling
         self.down_1 = conv_block_2_3d(self.in_dim, 64, activation)
         self.pool_1 = max_pooling_3d()
@@ -47,22 +46,10 @@ class UNet_3D(nn.Module):
         self.up_2 = conv_block_2_3d(384, 128, activation)
         self.trans_3 = conv_trans_block_3d(128, 128, activation)
         self.up_3 = conv_block_2_3d(128+64, 64, activation)
-        self.out = conv_block_3d(64, 1, activation)
-        """
-        self.trans_1 = conv_trans_block_3d(self.num_filters * 32, self.num_filters * 32, activation)
-        self.up_1 = conv_block_2_3d(self.num_filters * 48, self.num_filters * 16, activation)
-        self.trans_2 = conv_trans_block_3d(self.num_filters * 16, self.num_filters * 16, activation)
-        self.up_2 = conv_block_2_3d(self.num_filters * 24, self.num_filters * 8, activation)
-        self.trans_3 = conv_trans_block_3d(self.num_filters * 8, self.num_filters * 8, activation)
-        self.up_3 = conv_block_2_3d(self.num_filters * 12, self.num_filters * 4, activation)
-        self.trans_4 = conv_trans_block_3d(self.num_filters * 4, self.num_filters * 4, activation)
-        self.up_4 = conv_block_2_3d(self.num_filters * 6, self.num_filters * 2, activation)
-        self.trans_5 = conv_trans_block_3d(self.num_filters * 2, self.num_filters * 2, activation)
-        self.up_5 = conv_block_2_3d(self.num_filters * 3, self.num_filters * 1, activation)
-        # Output
-        self.out = conv_block_3d(self.num_filters, self.out_dim, activation)
-        """
-    
+        self.out = nn.Sequential(
+        nn.Conv3d(64, 1, kernel_size=3, stride=1, padding=1),
+        nn.BatchNorm3d(1))
+ 
     def forward(self, other_frame):
         down1 = self.down_1(other_frame)
         pool1 = self.pool_1(down1)

@@ -152,7 +152,7 @@ class Two_Level_Nested_Unet(nn.Module):
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         predict = self.Segmentation_Module(temporal_mask)
-        return predict
+        return temporal_mask, predict
 class Temporal_Nested_Unet(nn.Module):
     def __init__(self, num_classes, input_channels=3, deep_supervision=False, **kwargs):
         super().__init__()

@@ -128,8 +128,7 @@ class ASPP(nn.Module):
 
 
 def output_block():
-    Layer = nn.Sequential(nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1)),
-                          nn.Sigmoid())
+    Layer = nn.Sequential(nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1)))
     return Layer
 
 

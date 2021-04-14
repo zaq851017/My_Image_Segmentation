@@ -140,5 +140,6 @@ if __name__ == "__main__":
     parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_image', type=int, default=0)
+    parser.add_argument('--draw_image_path', type=str, default="")
     config = parser.parse_args()
     main(config)

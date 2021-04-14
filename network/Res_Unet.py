@@ -218,5 +218,5 @@ class Two_level_Res_Unet(nn.Module):
         self.Temporal_Module = _Temporal_Module(1)
     def forward(self, x, other_frame):
         temporal_result = self.Temporal_Module(x, other_frame)
-        frame_result = self.Segmentation_Module(x)
+        frame_result = self.Segmentation_Module(temporal_result)
         return (temporal_result + frame_result) /2

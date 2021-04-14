@@ -15,3 +15,11 @@ class Scorer():
         return fbeta_score(self.label, self.predict, beta=1)
     def f2(self):
         return fbeta_score(self.label, self.predict, beta=2)
+class Losser():
+    def __init__(self):
+        self.loss = []
+    def add(self, loss_item):
+        self.loss.append(loss_item)
+    def mean(self):
+        return sum(self.loss) / len(self.loss)
+        
