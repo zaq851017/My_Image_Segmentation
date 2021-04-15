@@ -20,6 +20,7 @@ from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
 from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet, Two_Level_Nested_Unet
 from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
+from network.Unet3D import UNet_3D_Seg
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 import segmentation_models_pytorch as smp
@@ -77,6 +78,10 @@ def main(config):
         net = Two_Level_Nested_Unet(1)
         model_name = "Two_Level_Nested_Unet"
         print("Model Two_Level_Nested_Unet")
+    elif config.which_model == 13:
+        net = UNet_3D_Seg(1)
+        model_name = "UNet_3D_Seg"
+        print("Model UNet_3D_Seg")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -89,23 +94,30 @@ def main(config):
     train_weight = torch.FloatTensor([10 / 1]).cuda()
     criterion = nn.BCEWithLogitsLoss(pos_weight = train_weight)
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
+    if config.resize_image == 0:
+        crop_range_num = [150, 574, 70, 438]
+    elif config.resize_image == 1:
+        crop_range_num = [150, 574, 70, 282]
     if config.continuous == 0:
         print("Single image version")
         train_loader = get_loader(image_path = "Medical_data/train/",
                                 batch_size = BATCH_SIZE,
                                 mode = 'train',
                                 augmentation_prob = config.augmentation_prob,
-                                shffule_yn = True)
+                                shffule_yn = True,
+                                crop_range = crop_range_num)
         valid_loader = get_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
-                                shffule_yn = False)
+                                shffule_yn = False,
+                                crop_range = crop_range_num)
         test_loader = get_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
                                 mode = 'test',
                                 augmentation_prob = 0.,
-                                shffule_yn = False)
+                                shffule_yn = False,
+                                crop_range = crop_range_num)
         train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
     elif config.continuous == 1:
         print("Continuous image version (1,10,20,30)")
@@ -113,17 +125,20 @@ def main(config):
                             batch_size = BATCH_SIZE,
                             mode = 'train',
                             augmentation_prob = config.augmentation_prob,
-                            shffule_yn = True)
+                            shffule_yn = True,
+                            crop_range = crop_range_num)
         valid_loader = get_continuous_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
-                                shffule_yn = False)
+                                shffule_yn = False,
+                                crop_range = crop_range_num)
         test_loader = get_continuous_loader(image_path = "Medical_data/test/",
                                 batch_size = 1,
                                 mode = 'test',
                                 augmentation_prob = 0.,
-                                shffule_yn = False)
+                                shffule_yn = False,
+                                crop_range = crop_range_num)
         train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
 
 
@@ -141,5 +156,6 @@ if __name__ == "__main__":
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_image', type=int, default=0)
     parser.add_argument('--draw_image_path', type=str, default="")
+    parser.add_argument('--resize_image', type=int, default=0)
     config = parser.parse_args()
     main(config)

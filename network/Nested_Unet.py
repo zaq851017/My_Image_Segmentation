@@ -115,13 +115,13 @@ class Single_Nested_Unet(nn.Module):
         x0_2 = self.conv0_2(torch.cat([x0_0, x0_1, self.up(x1_1)], 1))
 
         x3_0 = self.conv3_0(self.pool(x2_0))
-        x2_1 = self.conv2_1(torch.cat([x2_0, self.up(x3_0)], 1))
+        x2_1 = self.conv2_1(torch.cat([x2_0, F.upsample(self.up(x3_0), x2_0.size()[2:], mode='bilinear')], 1))
         x1_2 = self.conv1_2(torch.cat([x1_0, x1_1, self.up(x2_1)], 1))
         x0_3 = self.conv0_3(torch.cat([x0_0, x0_1, x0_2, self.up(x1_2)], 1))
 
         x4_0 = self.conv4_0(self.pool(x3_0))
         x3_1 = self.conv3_1(torch.cat([x3_0, F.upsample(self.up(x4_0), x3_0.size()[2:], mode='bilinear')], 1))
-        x2_2 = self.conv2_2(torch.cat([x2_0, x2_1, self.up(x3_1)], 1))
+        x2_2 = self.conv2_2(torch.cat([x2_0, x2_1, F.upsample(self.up(x3_1), x2_1.size()[2:], mode='bilinear')], 1))
         x1_3 = self.conv1_3(torch.cat([x1_0, x1_1, x1_2, self.up(x2_2)], 1))
         x0_4 = self.conv0_4(torch.cat([x0_0, x0_1, x0_2, x0_3, self.up(x1_3)], 1))
 

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import warnings
 def conv_block_3d(in_dim, out_dim, activation):
     return nn.Sequential(
         nn.Conv3d(in_dim, out_dim, kernel_size=3, stride=1, padding=1),
@@ -27,7 +29,7 @@ def conv_block_2_3d(in_dim, out_dim, activation):
 class UNet_3D(nn.Module):
     def __init__(self, num_class):
         super(UNet_3D, self).__init__()
-        
+        warnings.filterwarnings('ignore')
         self.in_dim = 3
         self.out_dim = num_class
         activation = nn.ReLU()
@@ -70,3 +72,51 @@ class UNet_3D(nn.Module):
         predict = self.out(up_3)
         #result = torch.mean(predict, dim = 2)
         return predict
+
+class UNet_3D_Seg(nn.Module):
+    def __init__(self, num_class):
+        super(UNet_3D_Seg, self).__init__()
+        warnings.filterwarnings('ignore')
+        self.in_dim = 3
+        self.out_dim = num_class
+        activation = nn.ReLU()
+        self.down_1 = conv_block_2_3d(self.in_dim, 64, activation)
+        self.pool_1 = max_pooling_3d()
+        self.down_2 = conv_block_2_3d(64, 128, activation)
+        self.pool_2 = max_pooling_3d()
+        self.down_3 = conv_block_2_3d(128, 256, activation)
+        self.pool_3 = max_pooling_3d()
+        self.bridge = conv_block_2_3d(256, 512, activation)
+        # Up sampling
+        self.trans_1 = conv_trans_block_3d(512, 512, activation)
+        self.up_1 = conv_block_2_3d(512+256, 256, activation)
+        self.trans_2 = conv_trans_block_3d(256, 256, activation)
+        self.up_2 = conv_block_2_3d(384, 128, activation)
+        self.trans_3 = conv_trans_block_3d(128, 128, activation)
+        self.up_3 = conv_block_2_3d(128+64, 64, activation)
+        self.out = nn.Sequential(
+        nn.Conv3d(64, 1, kernel_size=3, stride=1, padding=1),
+        nn.BatchNorm3d(1))
+ 
+    def forward(self, other_frame):
+        other_frame = other_frame.transpose(1, 2).contiguous()
+        down1 = self.down_1(other_frame)
+        pool1 = self.pool_1(down1)
+        down2 = self.down_2(pool1)
+        pool2 = self.pool_2(down2)
+        down3 = self.down_3(pool2)
+        pool3 = self.pool_3(down3)
+        bridge = self.bridge(pool3)
+        trans_1 = self.trans_1(bridge)
+        concat_1 = torch.cat([trans_1, F.upsample(down3, trans_1.size()[2:])], dim=1)
+        up_1 = self.up_1(concat_1)
+        trans_2 = self.trans_2(up_1)
+        concat_2 = torch.cat([trans_2, F.upsample(down2, trans_2.size()[2:])], dim=1)
+        up_2 = self.up_2(concat_2)
+        trans_3 = self.trans_3(up_2)
+        concat_3 = torch.cat([trans_3, F.upsample(down1, trans_3.size()[2:])], dim=1)
+        up_3 = self.up_3(concat_3)
+        predict = self.out(up_3)
+        #result = torch.mean(predict, dim = 2)
+        result = F.upsample(predict, other_frame.size()[2:])
+        return result

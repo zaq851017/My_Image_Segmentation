@@ -20,7 +20,7 @@ import copy
 from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
 from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet
+from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet, Two_Level_Nested_Unet
 from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
@@ -48,6 +48,83 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
             for ll in index_sort[2:]:
                 labels[ labels == ll ] = 0
         return np.array(labels, dtype=np.uint8)
+def Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30):
+    start = 0
+    end = 0
+    check_start = False
+    for i in range(len(continue_list)):
+            if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
+                start = i
+                check_start = True
+                continue
+            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
+                end = i
+                continue
+            elif continue_list[i] == 0 and check_start == True:
+                temp = (end+1) - start
+                if temp < 0:
+                    postprocess_continue_list[start: start+1] = [0]
+                if temp <= distance:
+                    postprocess_continue_list[start: end+1] = [0] * temp
+                check_start = False
+                continue
+            elif continue_list[i] == 1 and i in  bound_list:
+                end = i
+                temp = (end+1) - start
+                if temp < 0:
+                    postprocess_continue_list[end: end+1] = [0]
+                if temp <= 30:
+                    postprocess_continue_list[start: end+1] = [0] * temp
+                check_start = False
+    return postprocess_continue_list
+def Cal_mask_center(mask_img):
+    middle_list = {}
+    for key in mask_img:
+        middle_list[key] = []
+        for img_index in range(len(mask_img[key])):
+            img = mask_img[key][img_index]
+            if np.sum(img) != 0:
+                mean_x = np.mean(img.nonzero()[0])
+                mean_y = np.mean(img.nonzero()[1])
+            else:
+                mean_x = 0
+                mean_y = 0
+            middle_list[key].append([mean_x, mean_y])
+    return middle_list
+def Cal_Local_Global_mean(middle_list, interval_num = 5):
+    mean_list = {}
+    global_mean_list = {}
+    for key in middle_list:
+        temp_total = [0] * interval_num
+        temp_x = [0] * interval_num
+        temp_y = [0] * interval_num
+        temp_global_x = 0
+        temp_global_y = 0
+        temp_global_total = 0
+        len_check_list = []
+        for i in range(1,interval_num+1):
+            len_check_list.append([(i-1), (i-1)*len(middle_list[key])/interval_num, i*len(middle_list[key])/interval_num ])
+        for i, (x,y) in enumerate(middle_list[key]):
+            if x!=0 and y != 0:
+                temp_global_x += x
+                temp_global_y += y
+                temp_global_total += 1
+                for j in range(len(len_check_list)):
+                    if i >= len_check_list[j][1] and i< len_check_list[j][2]:
+                        temp_x[len_check_list[j][0]] += x
+                        temp_y[len_check_list[j][0]] += y
+                        temp_total[len_check_list[j][0]] += 1
+        if temp_global_total == 0:
+            temp_global_total += 1
+        for check_temp in range(len(temp_total)):
+            if temp_total[check_temp] == 0:
+                temp_total[check_temp] +=1
+        temp_list = []
+        for temp in range(len(temp_total)):
+            temp_list.append([ temp_x[temp]/temp_total[temp], temp_y[temp]/temp_total[temp]])
+        global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
+        mean_list[key] = temp_list
+    return mean_list, global_mean_list
 def test_wo_postprocess(config, test_loader):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
@@ -95,6 +172,10 @@ def test_wo_postprocess(config, test_loader):
         net = Two_level_Res_Unet(1)
         model_name = "Two_level_Res_Unet"
         print("Model Two_level_Res_Unet")
+    elif config.which_model == 12:
+        net = Two_Level_Nested_Unet(1)
+        model_name = "Two_Level_Nested_Unet"
+        print("Model Two_Level_Nested_Unet")
     elif config.which_model == 0:
         print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
@@ -200,6 +281,10 @@ def test_w_postprocess(config, test_loader):
         net = Two_level_Res_Unet(1)
         model_name = "Two_level_Res_Unet"
         print("Model Two_level_Res_Unet")
+    elif config.which_model == 12:
+        net = Two_Level_Nested_Unet(1)
+        model_name = "Two_Level_Nested_Unet"
+        print("Model Two_Level_Nested_Unet")
     elif config.which_model == 0:
         print("No assign which model!")
     net.load_state_dict(torch.load(config.model_path))
@@ -246,128 +331,9 @@ def test_w_postprocess(config, test_loader):
                 mask_img[dict_path].append(SR)
         bound_list.append(i)
         postprocess_continue_list = copy.deepcopy(continue_list)
-        start = 0
-        end = 0
-        check_start = False
-        for i in range(len(continue_list)):
-            if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
-                start = i
-                check_start = True
-                continue
-            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
-                end = i
-                continue
-            elif continue_list[i] == 0 and check_start == True:
-                temp = (end+1) - start
-                if temp < 0:
-                    postprocess_continue_list[start: start+1] = [0]
-                if temp <= 30:
-                    postprocess_continue_list[start: end+1] = [0] * temp
-                check_start = False
-                continue
-            elif continue_list[i] == 1 and i in  bound_list:
-                end = i
-                temp = (end+1) - start
-                if temp < 0:
-                    postprocess_continue_list[end: end+1] = [0]
-                if temp <= 30:
-                    postprocess_continue_list[start: end+1] = [0] * temp
-                check_start = False
-        middle_list = {}
-        for key in mask_img:
-            middle_list[key] = []
-            for img_index in range(len(mask_img[key])):
-                img = mask_img[key][img_index]
-                if np.sum(img) != 0:
-                    mean_x = np.mean(img.nonzero()[0])
-                    mean_y = np.mean(img.nonzero()[1])
-                else:
-                    mean_x = 0
-                    mean_y = 0
-                middle_list[key].append([mean_x, mean_y])
-        mean_list = {}
-        global_mean_list = {}
-        for key in middle_list:
-            temp_total = [0] * 5
-            temp_x = [0] * 5
-            temp_y = [0] * 5
-            temp_global_x = 0
-            temp_global_y = 0
-            temp_global_total = 0
-            for i, (x,y) in enumerate(middle_list[key]):
-                if x != 0 and y != 0:
-                    temp_global_x += x
-                    temp_global_y += y
-                    temp_global_total += 1
-                    if i < len(middle_list[key]) / 5:
-                        temp_x[0] += x
-                        temp_y[0] += y
-                        temp_total[0] += 1
-                    elif i < 2*len(middle_list[key]) / 5:
-                        temp_x[1] += x
-                        temp_y[1] += y
-                        temp_total[1] += 1
-                    elif i < 3*len(middle_list[key]) / 5:
-                        temp_x[2] += x
-                        temp_y[2] += y
-                        temp_total[2] += 1
-                    elif i < 4*len(middle_list[key]) / 5:
-                        temp_x[3] += x
-                        temp_y[3] += y
-                        temp_total[3] += 1
-                    else:
-                        temp_x[4] += x
-                        temp_y[4] += y
-                        temp_total[4] += 1
-            if temp_global_total == 0:
-                temp_global_total += 1
-            for check_temp in range(len(temp_total)):
-                if temp_total[check_temp] == 0:
-                    temp_total[check_temp] +=1
-            temp_list = []
-            for temp in range(len(temp_total)):
-                temp_list.append([ temp_x[temp]/temp_total[temp], temp_y[temp]/temp_total[temp]])
-            global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
-            mean_list[key] = temp_list
-        for key in middle_list:
-            for i, (x, y) in enumerate(middle_list[key]):
-                if x == 0 and y == 0:
-                    final_mask_exist.append(0)
-                elif i < len(middle_list[key]) / 5:
-                    abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][0][0]))
-                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][0][1]))
-                    if abs_x >= distance or abs_y >= distance:
-                        final_mask_exist.append(0)
-                    else:
-                        final_mask_exist.append(1)
-                elif i < 2*len(middle_list[key]) / 5:
-                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][1][0]))
-                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][1][1]))
-                    if abs_x >= distance or abs_y >= distance:
-                        final_mask_exist.append(0)
-                    else:
-                        final_mask_exist.append(1)
-                elif i < 3*len(middle_list[key]) / 5:
-                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][2][0]))
-                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][2][1]))
-                    if abs_x >= distance or abs_y >= distance:
-                        final_mask_exist.append(0)
-                    else:
-                        final_mask_exist.append(1)
-                elif i < 4*len(middle_list[key]) / 5:
-                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][3][0]))
-                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][3][1]))
-                    if abs_x >= distance or abs_y >= distance:
-                        final_mask_exist.append(0)
-                    else:
-                        final_mask_exist.append(1)
-                else:
-                    abs_x = min(abs(x-global_mean_list[key][0]), abs(x - mean_list[key][4][0]))
-                    abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][4][1]))
-                    if abs_x >= distance or abs_y >= distance:
-                        final_mask_exist.append(0)
-                    else:
-                        final_mask_exist.append(1)
+        postprocess_continue_list = Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30)
+        middle_list = Cal_mask_center(mask_img)
+        mean_list, global_mean_list = Cal_Local_Global_mean(middle_list, interval_num = 5)
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()

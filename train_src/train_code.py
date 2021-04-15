@@ -19,6 +19,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 import segmentation_models_pytorch as smp
+import copy
 def train_continuous(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
     Sigmoid_func = nn.Sigmoid()
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
@@ -33,21 +34,33 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
         Temporal_Losser = Losser()
         Single_Losser = Losser()
         for i, (file_name, image_list, mask_list) in tqdm(enumerate(train_loader)):
-            pn_frame = image_list[:,1:,:,:,:]
-            frame = image_list[:,:1,:,:,:]
-            mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
-            pn_mask = mask_list[:,1:,:,:].cuda()
-            temporal_mask, output = net(frame, pn_frame)
-            output = output.squeeze(dim = 1)
-            loss = criterion(output, mask.float())
-            pn_loss = criterion(temporal_mask, pn_mask)
+            if config.which_model != 13:
+                pn_frame = image_list[:,1:,:,:,:]
+                frame = image_list[:,:1,:,:,:]
+                mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                pn_mask = mask_list[:,1:,:,:].cuda()
+                temporal_mask, output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
+                loss = criterion(output, mask.float())
+                pn_loss = criterion(temporal_mask, pn_mask)
+                GT = mask.cpu()
+            else:
+                pn_frame = image_list[:,1:,:,:,:]
+                frame = image_list[:,:1,:,:,:]
+                mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                pn_mask = mask_list[:,1:,:,:].cuda()
+                output = net(pn_frame)
+                output = output.squeeze(dim = 1)
+                loss = torch.tensor(0)
+                pn_loss = criterion(output, pn_mask.float())
+                GT = mask.cpu()
             total_loss = loss + pn_loss
             OPTIMIZER.zero_grad() 
             total_loss.backward()
             OPTIMIZER.step()
             output = Sigmoid_func(output)
+            output = torch.mean(output, dim = 1)
             SR = torch.where(output > threshold, 1, 0).cpu()
-            GT = mask.cpu()
             Temporal_Losser.add(pn_loss.item())
             Single_Losser.add(loss.item())
             if i % 100 == 1:
@@ -57,15 +70,26 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
             net.eval()
             valid_Scorer = Scorer(config)
             for i, (file_name, image_list, mask_list) in tqdm(enumerate(valid_loader)):
-                pn_frame = image_list[:,1:,:,:,:]
-                frame = image_list[:,:1,:,:,:]
-                mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
-                pn_mask = mask_list[:,1:,:,:]
-                temporal_mask, output = net(frame, pn_frame)
-                output = output.squeeze(dim = 1)
+                if config.which_model != 13:
+                    pn_frame = image_list[:,1:,:,:,:]
+                    frame = image_list[:,:1,:,:,:]
+                    mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                    pn_mask = mask_list[:,1:,:,:].cuda()
+                    temporal_mask, output = net(frame, pn_frame)
+                    output = output.squeeze(dim = 1)
+                    GT = mask.cpu()
+                else:
+                    pn_frame = image_list[:,1:,:,:,:]
+                    frame = image_list[:,:1,:,:,:]
+                    mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                    pn_mask = mask_list[:,1:,:,:].cuda()
+                    output = net(pn_frame)
+                    output = output.squeeze(dim = 1)
+                    output = torch.mean(output, dim = 1)
+                    GT = mask.cpu()
+                import ipdb; ipdb.set_trace()
                 output = Sigmoid_func(output)
                 SR = torch.where(output > threshold, 1, 0).cpu()
-                GT = mask.cpu()
                 valid_Scorer.add(SR, GT)
             f1 = valid_Scorer.f1()
             logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
@@ -75,7 +99,6 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
                 net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
-                #net_save_path = config.save_model_path + now_time + model_name +"/Epoch="+str(epoch)+"_Score="+str(round(f1,3))+".pt"
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
@@ -88,6 +111,20 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                     frame = image_list[:,:1,:,:,:]
                     temporal_mask, output = net(frame, pn_frame)
                     output = output.squeeze(dim = 1)
+                    if config.which_model != 13:
+                        pn_frame = image_list[:,1:,:,:,:]
+                        frame = image_list[:,:1,:,:,:]
+                        mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                        pn_mask = mask_list[:,1:,:,:].cuda()
+                        temporal_mask, output = net(frame, pn_frame)
+                        output = output.squeeze(dim = 1)
+                    else:
+                        pn_frame = image_list[:,1:,:,:,:]
+                        frame = image_list[:,:1,:,:,:]
+                        mask = mask_list[:,:1,:,:].squeeze(dim = 1).cuda()
+                        pn_mask = mask_list[:,1:,:,:].cuda()
+                        output = net(pn_frame)
+                        output = output.squeeze(dim = 1)
                     output = Sigmoid_func(output)
                     crop_image = crop_image.squeeze().data.numpy()
                     origin_crop_image = crop_image.copy()
@@ -122,14 +159,14 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
             image = image.cuda()
             mask = mask.cuda()
             output = net(image).squeeze(dim = 1)
+            SR = torch.where(output > threshold, 1, 0).cpu()
+            GT = mask.cpu()
             loss = criterion(output, mask.float())
             OPTIMIZER.zero_grad() 
             loss.backward()
             OPTIMIZER.step()
             output = Sigmoid_func(output)
             train_Losser.add(loss.item())
-            SR = torch.where(output > threshold, 1, 0).cpu()
-            GT = mask.cpu()
             if i % 100 == 1:
                 train_Scorer.add(SR, GT)
                 logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, F2 : %.4f Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.f2(), train_Losser.mean()))
@@ -146,7 +183,6 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
                 GT = mask.cpu()
                 valid_Scorer.add(SR, GT)
             f1 = valid_Scorer.f1()
-            #f2 = valid_Scorer.f2()
             logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
