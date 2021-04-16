@@ -47,5 +47,6 @@ if __name__ == "__main__":
     parser.add_argument('--keep_image', type= int, default=1)
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--w_postprocess', type=int, default=0)
+    parser.add_argument('--resize_image', type=int, default=0)
     config = parser.parse_args()
     main(config)

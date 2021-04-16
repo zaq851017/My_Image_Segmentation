@@ -125,6 +125,25 @@ def Cal_Local_Global_mean(middle_list, interval_num = 5):
         global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
         mean_list[key] = temp_list
     return mean_list, global_mean_list
+def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num = 5, distance = 75):
+    final_mask_exist = []
+    for key in middle_list:
+        len_check_list = []
+        for i in range(1,interval_num+1):
+            len_check_list.append([(i-1), (i-1)*len(middle_list[key])/interval_num, i*len(middle_list[key])/interval_num ])
+        for i, (x, y) in enumerate(middle_list[key]):
+            if x == 0 and y == 0:
+                final_mask_exist.append(0)
+            else:
+                for j in range(len(len_check_list)):
+                    if i >= len_check_list[j][1] and i< len_check_list[j][2]:
+                        abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][len_check_list[j][0]][0]))
+                        abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][len_check_list[j][0]][1]))
+                        if abs_x >= distance or abs_y >= distance:
+                            final_mask_exist.append(0)
+                        else:
+                            final_mask_exist.append(1)
+    return final_mask_exist
 def test_wo_postprocess(config, test_loader):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
@@ -192,7 +211,8 @@ def test_wo_postprocess(config, test_loader):
             elif config.continuous == 1:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
-                output = net(frame, pn_frame).squeeze(dim = 1)
+                temporal_mask, output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
             output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
@@ -294,7 +314,6 @@ def test_w_postprocess(config, test_loader):
         os.makedirs(config.output_path)
     with torch.no_grad():
         tStart = time.time()
-        final_mask_exist = []
         mask_img = {}
         temp_mask_exist = [1] * len(test_loader)
         temp_continue_list = [1] * len(test_loader)
@@ -311,7 +330,8 @@ def test_w_postprocess(config, test_loader):
             elif config.continuous == 1:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
-                output = net(frame, pn_frame).squeeze(dim = 1)
+                temporal_mask, output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
             output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
@@ -334,6 +354,7 @@ def test_w_postprocess(config, test_loader):
         postprocess_continue_list = Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30)
         middle_list = Cal_mask_center(mask_img)
         mean_list, global_mean_list = Cal_Local_Global_mean(middle_list, interval_num = 5)
+        final_mask_exist = Final_postprocess(middle_list, mean_list, global_mean_list)
         for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
@@ -341,7 +362,8 @@ def test_w_postprocess(config, test_loader):
             elif config.continuous == 1:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
-                output = net(frame, pn_frame).squeeze(dim = 1)
+                temporal_mask, output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
             output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
