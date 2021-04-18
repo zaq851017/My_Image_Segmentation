@@ -61,17 +61,17 @@ class UNet_3D(nn.Module):
         pool3 = self.pool_3(down3)
         bridge = self.bridge(pool3)
         trans_1 = self.trans_1(bridge)
-        concat_1 = torch.cat([trans_1, down3], dim=1)
+        concat_1 = torch.cat([trans_1, F.upsample(down3, trans_1.size()[2:])], dim=1)
         up_1 = self.up_1(concat_1)
         trans_2 = self.trans_2(up_1)
-        concat_2 = torch.cat([trans_2, down2], dim=1)
+        concat_2 = torch.cat([trans_2, F.upsample(down2, trans_2.size()[2:])], dim=1)
         up_2 = self.up_2(concat_2)
         trans_3 = self.trans_3(up_2)
-        concat_3 = torch.cat([trans_3, down1], dim=1)
+        concat_3 = torch.cat([trans_3, F.upsample(down1, trans_3.size()[2:])], dim=1)
         up_3 = self.up_3(concat_3)
         predict = self.out(up_3)
-        #result = torch.mean(predict, dim = 2)
-        return predict
+        result = F.upsample(predict, other_frame.size()[2:])
+        return result
 
 class UNet_3D_Seg(nn.Module):
     def __init__(self, num_class):
@@ -117,6 +117,5 @@ class UNet_3D_Seg(nn.Module):
         concat_3 = torch.cat([trans_3, F.upsample(down1, trans_3.size()[2:])], dim=1)
         up_3 = self.up_3(concat_3)
         predict = self.out(up_3)
-        #result = torch.mean(predict, dim = 2)
         result = F.upsample(predict, other_frame.size()[2:])
         return result

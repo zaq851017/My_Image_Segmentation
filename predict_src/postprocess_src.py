@@ -17,11 +17,6 @@ import argparse
 import time
 from matplotlib import cm as CM
 import copy
-from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
-from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
-from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet, Two_Level_Nested_Unet
-from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 def LISTDIR(path):
@@ -39,7 +34,7 @@ def frame2video(path):
     videoWriter.release()
 def postprocess_img(o_img, final_mask_exist, continue_list):
     int8_o_img = np.array(o_img, dtype=np.uint8)
-    if np.sum(int8_o_img != 0) == 0 or final_mask_exist == 0 or continue_list == 0:
+    if np.sum(int8_o_img) < 500 or final_mask_exist == 0 or continue_list == 0:
         return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
     else:
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
@@ -47,7 +42,10 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
         if index_sort.shape[0] > 2:
             for ll in index_sort[2:]:
                 labels[ labels == ll ] = 0
-        return np.array(labels, dtype=np.uint8)
+        if np.sum(labels) < 500:
+            return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
+        else:
+            return np.array(labels, dtype=np.uint8)
 def Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30):
     start = 0
     end = 0
@@ -144,61 +142,9 @@ def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num = 5
                         else:
                             final_mask_exist.append(1)
     return final_mask_exist
-def test_wo_postprocess(config, test_loader):
+def test_wo_postprocess(config, test_loader, net):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
-    if config.which_model == 1:
-        net = Single_vgg_FCN8s(1)
-        model_name = "Single_vgg__FCN8s"
-        print("Model Single_vgg_FCN8s")
-    elif config.which_model == 2:
-        net = Single_vgg_Unet(1)
-        model_name = "Single_vgg_Unet"
-        print("Model Single_vgg_Unet")
-    elif config.which_model == 3:
-        net = Single_Res_Unet(1)
-        model_name = "Single_Res_Unet"
-        print("Model Single_Res_Unet")
-    elif config.which_model == 4:
-        net = Single_Nested_Unet(1)
-        model_name = "Single_Nested_Unet"
-        print("Model Single_Nested_Unet")
-    elif config.which_model == 5:
-        net = Single_Double_Unet(1)
-        model_name = "Single_Double_Unet"
-        print("Model Single_Double_Unet") 
-    elif config.which_model == 6:
-        net = Temporal_vgg_FCN8s(1)
-        model_name = "Temporal_vgg_FCN8s"
-        print("Model Temporal_vgg_FCN8s")
-    elif config.which_model == 7:
-        net = Temporal_vgg_Unet(1)
-        model_name = "Temporal_vgg_Unet"
-        print("Model Temporal_vgg_Unet")
-    elif config.which_model == 8:
-        net = Temporal_Res_Unet(1)
-        model_name = "Temporal_Res_Unet"
-        print("Model Temporal_Res_Unet")
-    elif config.which_model == 9:
-        net = Temporal_Nested_Unet(1)
-        model_name = "Temporal_Nested_Unet"
-        print("Model Temporal_Nested_Unet")
-    elif config.which_model == 10:
-        net = Temporal_Double_Unet(1)
-        model_name = "Temporal_Double_Unet"
-        print("Model Temporal_Double_Unet")
-    elif config.which_model == 11:
-        net = Two_level_Res_Unet(1)
-        model_name = "Two_level_Res_Unet"
-        print("Model Two_level_Res_Unet")
-    elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1)
-        model_name = "Two_Level_Nested_Unet"
-        print("Model Two_Level_Nested_Unet")
-    elif config.which_model == 0:
-        print("No assign which model!")
-    net.load_state_dict(torch.load(config.model_path))
-    net = net.cuda()
     net.eval()
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)
@@ -213,16 +159,10 @@ def test_wo_postprocess(config, test_loader):
                 frame = image[:,:1,:,:,:]
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
-            output = Sigmoid_func(output)
-            crop_image = crop_image.squeeze().data.numpy()
-            origin_crop_image = crop_image.copy()
-            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            heatmap = np.uint8(255 * SR)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-            heat_img = heatmap*0.9+origin_crop_image
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
+            temporal_mask = Sigmoid_func(temporal_mask)
             if not os.path.isdir(write_path+"/original"):
                 os.makedirs(write_path+"/original")
             if not os.path.isdir(write_path+"/forfilm"):
@@ -231,6 +171,21 @@ def test_wo_postprocess(config, test_loader):
                 os.makedirs(write_path+"/merge")
             if not os.path.isdir(write_path+"/vol_mask"):
                 os.makedirs(write_path+"/vol_mask")
+            if config.draw_temporal == 1:
+                if not os.path.isdir(write_path+"/temporal_mask"):
+                    os.makedirs(write_path+"/temporal_mask")
+                for j in range(temporal_mask.shape[1]):
+                    temporal_res = temporal_mask[:,j:j+1,:,:].squeeze(dim = 1)
+                    t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
+                    t_img_name = file_name[0].split("/")[-1].split(".")[0]+"_"+str(j)+".jpg"
+                    cv2.imwrite(os.path.join(write_path+"/temporal_mask", t_img_name), t_SR*255)
+            output = Sigmoid_func(output)
+            crop_image = crop_image.squeeze().data.numpy()
+            origin_crop_image = crop_image.copy()
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            heatmap = np.uint8(255 * SR)
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+            heat_img = heatmap*0.9+origin_crop_image
             merge_img = np.hstack([origin_crop_image, heat_img])
             cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
             imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
@@ -253,62 +208,10 @@ def test_wo_postprocess(config, test_loader):
                     full_path_4 = os.path.join(full_path, num_files+"/forfilm")
                     os.system("rm -r "+full_path_3)
                     os.system("rm -r "+full_path_4)
-def test_w_postprocess(config, test_loader):
+def test_w_postprocess(config, test_loader, net):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
     distance = 75
-    if config.which_model == 1:
-        net = Single_vgg_FCN8s(1)
-        model_name = "Single_vgg__FCN8s"
-        print("Model Single_vgg_FCN8s")
-    elif config.which_model == 2:
-        net = Single_vgg_Unet(1)
-        model_name = "Single_vgg_Unet"
-        print("Model Single_vgg_Unet")
-    elif config.which_model == 3:
-        net = Single_Res_Unet(1)
-        model_name = "Single_Res_Unet"
-        print("Model Single_Res_Unet")
-    elif config.which_model == 4:
-        net = Single_Nested_Unet(1)
-        model_name = "Single_Nested_Unet"
-        print("Model Single_Nested_Unet")
-    elif config.which_model == 5:
-        net = Single_Double_Unet(1)
-        model_name = "Single_Double_Unet"
-        print("Model Single_Double_Unet") 
-    elif config.which_model == 6:
-        net = Temporal_vgg_FCN8s(1)
-        model_name = "Temporal_vgg_FCN8s"
-        print("Model Temporal_vgg_FCN8s")
-    elif config.which_model == 7:
-        net = Temporal_vgg_Unet(1)
-        model_name = "Temporal_vgg_Unet"
-        print("Model Temporal_vgg_Unet")
-    elif config.which_model == 8:
-        net = Temporal_Res_Unet(1)
-        model_name = "Temporal_Res_Unet"
-        print("Model Temporal_Res_Unet")
-    elif config.which_model == 9:
-        net = Temporal_Nested_Unet(1)
-        model_name = "Temporal_Nested_Unet"
-        print("Model Temporal_Nested_Unet")
-    elif config.which_model == 10:
-        net = Temporal_Double_Unet(1)
-        model_name = "Temporal_Double_Unet"
-        print("Model Temporal_Double_Unet") 
-    elif config.which_model == 11:
-        net = Two_level_Res_Unet(1)
-        model_name = "Two_level_Res_Unet"
-        print("Model Two_level_Res_Unet")
-    elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1)
-        model_name = "Two_Level_Nested_Unet"
-        print("Model Two_Level_Nested_Unet")
-    elif config.which_model == 0:
-        print("No assign which model!")
-    net.load_state_dict(torch.load(config.model_path))
-    net = net.cuda()
     net.eval()
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)

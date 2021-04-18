@@ -57,18 +57,19 @@ class Single_Res_Unet(nn.Module):
     def __init__(self, num_classes):
         super(Single_Res_Unet, self).__init__()
         warnings.filterwarnings('ignore')
-        res = models.resnet50(pretrained=True)
+        res = models.resnet34(pretrained=True)
+        channel_num = 512
         res_feature = nn.Sequential(*list(res.children())[:-1])
         self.features1 = nn.Sequential(*res_feature[:5])
         self.features2 = nn.Sequential(*res_feature[5:6])
         self.features3 = nn.Sequential(*res_feature[6:7])
         self.features4 = nn.Sequential(*res_feature[7:8])
-        self.center = _DecoderBlock(2048, 4096, 2048)
-        self.dec4 = _DecoderBlock(4096, 2048, 1024)
-        self.dec3 = _DecoderBlock(2048, 1024, 512)
-        self.dec2 = _DecoderBlock(1024, 512, 256)
-        self.dec1 = _DecoderBlock(512, 256, 128)
-        self.final = nn.Conv2d(128, num_classes, kernel_size=1)
+        self.center = _DecoderBlock(channel_num , int(2*channel_num) , channel_num )
+        self.dec4 = _DecoderBlock(2*channel_num , channel_num , int(channel_num /2))
+        self.dec3 = _DecoderBlock(channel_num , int(channel_num/2), int(channel_num/4 ))
+        self.dec2 = _DecoderBlock(int(channel_num /2), int(channel_num /4), int(channel_num /8))
+        self.dec1 = _DecoderBlock(int(channel_num /4), int(channel_num /8), int(channel_num /16))
+        self.final = nn.Conv2d(int(channel_num /16), num_classes, kernel_size=1)
     def forward(self, x):
         x = x.squeeze(dim = 1)
         x_size = x.size()
@@ -215,23 +216,3 @@ class _Feature_Extractor(nn.Module):
         x = x.squeeze(dim = 1)
         feature = self.vgg_feature(x)
         return feature
-class _Temporal_Module(nn.Module):
-    def __init__(self, num_classes):
-        super(_Temporal_Module, self).__init__()
-        self.n_classes = num_classes
-        self.ED = UNet_3D(1)
-    def forward(self, x, other_frame):
-        #frame_feature = self.res_backbone(x)
-        other_frame = other_frame.transpose(1, 2).contiguous()
-        temporal_result = self.ED(other_frame)
-        return temporal_result
-class Two_level_Res_Unet(nn.Module):
-    def __init__(self, num_classes):
-        super(Two_level_Res_Unet, self).__init__()
-        warnings.filterwarnings('ignore')
-        self.Segmentation_Module = _Segmentation_Module(1)
-        self.Temporal_Module = _Temporal_Module(1)
-    def forward(self, x, other_frame):
-        temporal_result = self.Temporal_Module(x, other_frame)
-        frame_result = self.Segmentation_Module(temporal_result)
-        return (temporal_result + frame_result) /2

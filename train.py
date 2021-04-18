@@ -15,12 +15,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 ##net work
-from network.Vgg_FCN8s import Single_vgg_FCN8s, Temporal_vgg_FCN8s
-from network.Vgg_Unet import Single_vgg_Unet, Temporal_vgg_Unet
-from network.Res_Unet import Single_Res_Unet, Temporal_Res_Unet, Two_level_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet, Temporal_Nested_Unet, Two_Level_Nested_Unet
-from network.Double_Unet import Single_Double_Unet, Temporal_Double_Unet
+from network.Vgg_FCN8s import Single_vgg_FCN8s
+from network.Vgg_Unet import Single_vgg_Unet
+from network.Res_Unet import Single_Res_Unet
+from network.Nested_Unet import Single_Nested_Unet
+from network.Double_Unet import Single_Double_Unet
 from network.Unet3D import UNet_3D_Seg
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 import segmentation_models_pytorch as smp
@@ -49,31 +50,11 @@ def main(config):
     elif config.which_model == 5:
         net = Single_Double_Unet(1)
         model_name = "Single_Double_Unet"
-        print("Model Single_Double_Unet") 
-    elif config.which_model == 6:
-        net = Temporal_vgg_FCN8s(1)
-        model_name = "Temporal_vgg_FCN8s"
-        print("Model Temporal_vgg_FCN8s")
-    elif config.which_model == 7:
-        net = Temporal_vgg_Unet(1)
-        model_name = "Temporal_vgg_Unet"
-        print("Model Temporal_vgg_Unet")
-    elif config.which_model == 8:
-        net = Temporal_Res_Unet(1)
-        model_name = "Temporal_Res_Unet"
-        print("Model Temporal_Res_Unet")
-    elif config.which_model == 9:
-        net = Temporal_Nested_Unet(1)
-        model_name = "Temporal_Nested_Unet"
-        print("Model Temporal_Nested_Unet")
-    elif config.which_model == 10:
-        net = Temporal_Double_Unet(1)
-        model_name = "Temporal_Double_Unet"
-        print("Model Temporal_Double_Unet")
+        print("Model Single_Double_Unet")
     elif config.which_model == 11:
-        net = Two_level_Res_Unet(1)
-        model_name = "Two_level_Res_Unet"
-        print("Model Two_level_Res_Unet")
+        net = Two_Level_Res_Unet(1)
+        model_name = "Two_Level_Res_Unet"
+        print("Model Two_Level_Res_Unet")
     elif config.which_model == 12:
         net = Two_Level_Nested_Unet(1)
         model_name = "Two_Level_Nested_Unet"

@@ -54,12 +54,12 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 loss = torch.tensor(0)
                 pn_loss = criterion(output, pn_mask.float())
                 GT = mask.cpu()
+                output = torch.mean(output, dim = 1)
             total_loss = loss + pn_loss
             OPTIMIZER.zero_grad() 
             total_loss.backward()
             OPTIMIZER.step()
             output = Sigmoid_func(output)
-            output = torch.mean(output, dim = 1)
             SR = torch.where(output > threshold, 1, 0).cpu()
             Temporal_Losser.add(pn_loss.item())
             Single_Losser.add(loss.item())
