@@ -136,7 +136,7 @@ class Continuos_Image(data.Dataset):
         print(self.crop_range)
         self.mode = mode
         self.augmentation_prob = prob
-        self.continuous_frame_num = [5, 10, 15, 20]
+        self.continuous_frame_num = [1, 2, 3, 4]
         print("temporal frame", self.continuous_frame_num)
         if mode == "train" or mode == "valid":
             self.image_paths = {}

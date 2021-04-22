@@ -27,29 +27,31 @@ def conv_block_2_3d(in_dim, out_dim, activation):
         nn.BatchNorm3d(out_dim),)
 
 class UNet_3D(nn.Module):
-    def __init__(self, num_class):
+    def __init__(self, num_class, Unet_3D_channel = 64):
         super(UNet_3D, self).__init__()
         warnings.filterwarnings('ignore')
         self.in_dim = 3
         self.out_dim = num_class
+        model_size_num = Unet_3D_channel
+        print("Unet_3D_channel", Unet_3D_channel)
         activation = nn.ReLU()
         # Down sampling
-        self.down_1 = conv_block_2_3d(self.in_dim, 64, activation)
+        self.down_1 = conv_block_2_3d(self.in_dim, model_size_num, activation)
         self.pool_1 = max_pooling_3d()
-        self.down_2 = conv_block_2_3d(64, 128, activation)
+        self.down_2 = conv_block_2_3d(model_size_num, 2*model_size_num, activation)
         self.pool_2 = max_pooling_3d()
-        self.down_3 = conv_block_2_3d(128, 256, activation)
+        self.down_3 = conv_block_2_3d(2*model_size_num, 4*model_size_num, activation)
         self.pool_3 = max_pooling_3d()
-        self.bridge = conv_block_2_3d(256, 512, activation)
+        self.bridge = conv_block_2_3d(4*model_size_num, 8*model_size_num, activation)
         # Up sampling
-        self.trans_1 = conv_trans_block_3d(512, 512, activation)
-        self.up_1 = conv_block_2_3d(512+256, 256, activation)
-        self.trans_2 = conv_trans_block_3d(256, 256, activation)
-        self.up_2 = conv_block_2_3d(384, 128, activation)
-        self.trans_3 = conv_trans_block_3d(128, 128, activation)
-        self.up_3 = conv_block_2_3d(128+64, 64, activation)
+        self.trans_1 = conv_trans_block_3d(8*model_size_num, 8*model_size_num, activation)
+        self.up_1 = conv_block_2_3d(12*model_size_num, 4*model_size_num, activation)
+        self.trans_2 = conv_trans_block_3d(4*model_size_num, 4*model_size_num, activation)
+        self.up_2 = conv_block_2_3d(6*model_size_num, 2*model_size_num, activation)
+        self.trans_3 = conv_trans_block_3d(2*model_size_num, 2*model_size_num, activation)
+        self.up_3 = conv_block_2_3d(3*model_size_num, 1*model_size_num, activation)
         self.out = nn.Sequential(
-        nn.Conv3d(64, 1, kernel_size=3, stride=1, padding=1),
+        nn.Conv3d(1*model_size_num, 1, kernel_size=3, stride=1, padding=1),
         nn.BatchNorm3d(1))
  
     def forward(self, other_frame):

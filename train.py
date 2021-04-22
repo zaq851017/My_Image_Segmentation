@@ -52,11 +52,11 @@ def main(config):
         model_name = "Single_Double_Unet"
         print("Model Single_Double_Unet")
     elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1)
+        net = Two_Level_Res_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Res_Unet"
         print("Model Two_Level_Res_Unet")
     elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1)
+        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Nested_Unet"
         print("Model Two_Level_Nested_Unet")
     elif config.which_model == 13:
@@ -101,7 +101,7 @@ def main(config):
                                 crop_range = crop_range_num)
         train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
     elif config.continuous == 1:
-        print("Continuous image version (1,10,20,30)")
+        print("Continuous image version")
         train_loader = get_continuous_loader(image_path = "Medical_data/train/", 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
@@ -137,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_image', type=int, default=0)
     parser.add_argument('--draw_image_path', type=str, default="")
+    parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--resize_image', type=int, default=0)
     config = parser.parse_args()
     main(config)

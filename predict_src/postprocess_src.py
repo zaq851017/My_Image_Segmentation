@@ -159,10 +159,10 @@ def test_wo_postprocess(config, test_loader, net):
                 frame = image[:,:1,:,:,:]
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
+                temporal_mask = Sigmoid_func(temporal_mask)
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
-            temporal_mask = Sigmoid_func(temporal_mask)
             if not os.path.isdir(write_path+"/original"):
                 os.makedirs(write_path+"/original")
             if not os.path.isdir(write_path+"/forfilm"):
