@@ -85,9 +85,9 @@ class Single_Res_Unet(nn.Module):
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
         return predict
-class Single_Small_Res_Unet(nn.Module):
+class Temporal_Res_Unet(nn.Module):
     def __init__(self, num_classes):
-        super(Single_Res_Unet, self).__init__()
+        super(Temporal_Res_Unet, self).__init__()
         warnings.filterwarnings('ignore')
         res = models.resnet34(pretrained=True)
         channel_num = 512
@@ -102,21 +102,20 @@ class Single_Small_Res_Unet(nn.Module):
         self.dec2 = _DecoderBlock(int(channel_num /2), int(channel_num /4), int(channel_num /8))
         self.dec1 = _DecoderBlock(int(channel_num /4), int(channel_num /8), int(channel_num /16))
         self.final = nn.Conv2d(int(channel_num /16), num_classes, kernel_size=1)
-    def forward(self, x):
-        x = x.squeeze(dim = 1)
-        x_size = x.size()
-        pool1 = self.features1(x)
+    def forward(self, feature, other_frame):
+        other_frame = other_frame.squeeze(dim = 1)
+        pool1 = self.features1(other_frame)
         pool2 = self.features2(pool1)
         pool3 = self.features3(pool2)
         pool4 = self.features4(pool3)
+        pool4 = pool4 + feature
         center = self.center(pool4)
         dec4 = self.dec4(torch.cat([center, F.upsample(pool4, center.size()[2:], mode='bilinear')], 1))
-        import ipdb; ipdb.set_trace()
         dec3 = self.dec3(torch.cat([dec4, F.upsample(pool3, dec4.size()[2:], mode='bilinear')], 1))
         dec2 = self.dec2(torch.cat([dec3, F.upsample(pool2, dec3.size()[2:], mode='bilinear')], 1))
         dec1 = self.dec1(torch.cat([dec2, F.upsample(pool1, dec2.size()[2:], mode='bilinear')], 1))
         final = self.final(dec1)
-        predict = F.upsample(final, x.size()[2:], mode='bilinear')
+        predict = F.upsample(final, other_frame.size()[2:], mode='bilinear')
         return predict
 class Attn_Single_Res_Unet(nn.Module):
     def __init__(self, num_classes):

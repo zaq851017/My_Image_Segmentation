@@ -61,11 +61,11 @@ def main(config):
         model_name = "Single_Double_Unet"
         print("Model Single_Double_Unet") 
     elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1)
+        net = Two_Level_Res_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Res_Unet"
         print("Model Two_Level_Res_Unet")
     elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1)
+        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Nested_Unet"
         print("Model Two_Level_Nested_Unet")
     elif config.which_model == 13:
@@ -93,5 +93,6 @@ if __name__ == "__main__":
     parser.add_argument('--w_postprocess', type=int, default=0)
     parser.add_argument('--resize_image', type=int, default=0)
     parser.add_argument('--draw_temporal', type=int, default=0)
+    parser.add_argument('--Unet_3D_channel', type=int, default=64)
     config = parser.parse_args()
     main(config)

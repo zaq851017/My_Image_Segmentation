@@ -65,7 +65,7 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
             Single_Losser.add(loss.item())
             if i % 100 == 1:
                 train_Scorer.add(SR, GT)
-                logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, F2 : %.4f, Temporal_Loss: %.4f, Single_Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.f2(), Temporal_Losser.mean(), Single_Losser.mean()))
+                logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f, Temporal_Loss: %.4f, Single_Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), Temporal_Losser.mean(), Single_Losser.mean()))
         with torch.no_grad():
             net.eval()
             valid_Scorer = Scorer(config)
@@ -91,7 +91,8 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 SR = torch.where(output > threshold, 1, 0).cpu()
                 valid_Scorer.add(SR, GT)
             f1 = valid_Scorer.f1()
-            logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
+            iou = valid_Scorer.iou()
+            logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f' %(epoch+1, f1, iou))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
             if f1 >= best_score or epoch % 5 == 0:
@@ -168,7 +169,7 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
             train_Losser.add(loss.item())
             if i % 100 == 1:
                 train_Scorer.add(SR, GT)
-                logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, F2 : %.4f Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.f2(), train_Losser.mean()))
+                logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), train_Losser.mean()))
         with torch.no_grad():
             net.eval()
             valid_Scorer = Scorer(config)
@@ -182,7 +183,8 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
                 GT = mask.cpu()
                 valid_Scorer.add(SR, GT)
             f1 = valid_Scorer.f1()
-            logging.info('Epoch [%d] [Valid] F1: %.4f' %(epoch+1, f1))
+            iou = valid_Scorer.iou()
+            logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f' %(epoch+1, f1, iou))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
             if f1 >= best_score or epoch % 5 == 0:
