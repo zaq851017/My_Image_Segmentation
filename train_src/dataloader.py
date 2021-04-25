@@ -136,7 +136,7 @@ class Continuos_Image(data.Dataset):
         print(self.crop_range)
         self.mode = mode
         self.augmentation_prob = prob
-        self.continuous_frame_num = [2, 4, 6, 8, 10, 12, 14]
+        self.continuous_frame_num = [1, 2, 3, 4, 5, 6, 7, 8]
         print("temporal frame", self.continuous_frame_num)
         if mode == "train" or mode == "valid":
             self.image_paths = {}
@@ -257,10 +257,12 @@ class Continuos_Image(data.Dataset):
             return o_image, image_list[0], image
     def __len__(self):
         return len(self.image_paths_list)
+    def its_continue_num(self):
+        return self.continuous_frame_num
 def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False, crop_range = [150, 574, 70, 438]):
     dataset = Continuos_Image(root = image_path, prob = augmentation_prob,mode = mode, crop_range = crop_range)
     data_loader = data.DataLoader(dataset=dataset,
 								  batch_size=batch_size,
 								  shuffle=shffule_yn,
                                   drop_last=True )
-    return data_loader
+    return data_loader, dataset.its_continue_num()

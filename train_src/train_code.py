@@ -20,10 +20,10 @@ import matplotlib.pyplot as plt
 import argparse
 import segmentation_models_pytorch as smp
 import copy
-def train_continuous(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
+def train_continuous(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num):
     Sigmoid_func = nn.Sigmoid()
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
-    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+".log")
+    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+"_"+str(continue_num)+".log")
     print("log_name ", log_name)
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
@@ -93,12 +93,12 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
             f1 = valid_Scorer.f1()
             iou = valid_Scorer.iou()
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f' %(epoch+1, f1, iou))
-            if not os.path.isdir(config.save_model_path + now_time + model_name):
-                os.makedirs(config.save_model_path + now_time + model_name)
+            if not os.path.isdir(os.path.join(config.save_model_path, now_time + model_name +str(continue_num))):
+                os.makedirs(os.path.join(config.save_model_path, now_time + model_name+str(continue_num)))
             if f1 >= best_score or epoch % 5 == 0:
                 best_score = f1
-                net_save_path = os.path.join(config.save_model_path, now_time+model_name)
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
+                net_save_path = os.path.join(config.save_model_path, now_time+model_name+str(continue_num))
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,4))+".pt")
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
@@ -190,7 +190,7 @@ def train_single(config, net, model_name, threshold, best_score, criterion, OPTI
             if f1 >= best_score or epoch % 5 == 0:
                 best_score = f1
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,3))+".pt")
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,4))+".pt")
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)

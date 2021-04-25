@@ -20,7 +20,7 @@ class Two_Level_Nested_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = 16)
+        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = 14)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         predict = self.Segmentation_Module(temporal_mask)
@@ -30,7 +30,7 @@ class Two_Level_Res_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 14, out_channels = 3, kernel_size=3, padding = 1)
+        self.down = nn.Conv2d(in_channels = 16, out_channels = 3, kernel_size=3, padding = 1)
         #res = models.resnet34(pretrained=True)
         #self.feature_extractor = nn.Sequential(*list(res.children())[:-2])
         self.Segmentation_Module = Single_Res_Unet(num_classes)

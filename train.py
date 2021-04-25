@@ -102,25 +102,25 @@ def main(config):
         train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
     elif config.continuous == 1:
         print("Continuous image version")
-        train_loader = get_continuous_loader(image_path = "Medical_data/train/", 
+        train_loader, continue_num = get_continuous_loader(image_path = "Medical_data/train/", 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
                             augmentation_prob = config.augmentation_prob,
                             shffule_yn = True,
                             crop_range = crop_range_num)
-        valid_loader = get_continuous_loader(image_path = "Medical_data/valid/",
+        valid_loader, continue_num = get_continuous_loader(image_path = "Medical_data/valid/",
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        test_loader = get_continuous_loader(image_path = "Medical_data/test/",
+        test_loader, continue_num = get_continuous_loader(image_path = "Medical_data/test/",
                                 batch_size = 1,
                                 mode = 'test',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
+        train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num)
 
 
 if __name__ == "__main__":
