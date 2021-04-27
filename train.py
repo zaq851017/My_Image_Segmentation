@@ -15,16 +15,16 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 ##net work
+import segmentation_models_pytorch as smp
 from network.Vgg_FCN8s import Single_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet
 from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.Double_Unet import Single_Double_Unet
 from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
-import segmentation_models_pytorch as smp
   
 def main(config):
     # parameter setting
@@ -63,6 +63,10 @@ def main(config):
         net = UNet_3D_Seg(1)
         model_name = "UNet_3D_Seg"
         print("Model UNet_3D_Seg")
+    elif config.which_model == 14:
+        net = Two_Level_Deeplab(1, config.Unet_3D_channel)
+        model_name = "Two_Level_Deeplab"
+        print("Two_Level_Deeplab")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -81,46 +85,34 @@ def main(config):
         crop_range_num = [150, 574, 70, 282]
     if config.continuous == 0:
         print("Single image version")
-        train_loader = get_loader(image_path = "Medical_data/train/",
+        train_loader = get_loader(image_path = config.train_data_path,
                                 batch_size = BATCH_SIZE,
                                 mode = 'train',
                                 augmentation_prob = config.augmentation_prob,
                                 shffule_yn = True,
                                 crop_range = crop_range_num)
-        valid_loader = get_loader(image_path = "Medical_data/valid/",
+        valid_loader = get_loader(image_path = config.valid_data_path,
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        test_loader = get_loader(image_path = "Medical_data/valid/",
-                                batch_size = 1,
-                                mode = 'test',
-                                augmentation_prob = 0.,
-                                shffule_yn = False,
-                                crop_range = crop_range_num)
-        train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR)
+        train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR)
     elif config.continuous == 1:
         print("Continuous image version")
-        train_loader, continue_num = get_continuous_loader(image_path = "Medical_data/train/", 
+        train_loader, continue_num = get_continuous_loader(image_path = config.train_data_path, 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
                             augmentation_prob = config.augmentation_prob,
                             shffule_yn = True,
                             crop_range = crop_range_num)
-        valid_loader, continue_num = get_continuous_loader(image_path = "Medical_data/valid/",
+        valid_loader, continue_num = get_continuous_loader(image_path = config.valid_data_path,
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        test_loader, continue_num = get_continuous_loader(image_path = "Medical_data/test/",
-                                batch_size = 1,
-                                mode = 'test',
-                                augmentation_prob = 0.,
-                                shffule_yn = False,
-                                crop_range = crop_range_num)
-        train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num)
+        train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num)
 
 
 if __name__ == "__main__":
@@ -133,6 +125,9 @@ if __name__ == "__main__":
     parser.add_argument('--save_model_path', type=str, default="./My_Image_Segmentation/models/")
     parser.add_argument('--best_score', type=float, default=0.7)
     parser.add_argument('--threshold', type=float, default=0.7)
+    parser.add_argument('--train_data_path', type=str, default="Medical_data/train/")
+    parser.add_argument('--valid_data_path', type=str, default="Medical_data/valid/")
+    parser.add_argument('--test_data_path', type=str, default="Medical_data/valid/")
     parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_image', type=int, default=0)

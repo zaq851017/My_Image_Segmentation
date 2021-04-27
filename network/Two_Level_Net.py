@@ -5,7 +5,9 @@ import warnings
 from network.Unet3D import UNet_3D
 from network.Res_Unet import Temporal_Res_Unet, Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
+from network.DeepLab import DeepLab
 from torchvision import models
+import segmentation_models_pytorch as smp
 class _Temporal_Module(nn.Module):
     def __init__(self, num_classes, Unet_3D_channel = 64):
         super(_Temporal_Module, self).__init__()
@@ -37,6 +39,18 @@ class Two_Level_Res_Unet(nn.Module):
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         #frame_feature = self.feature_extractor(input.squeeze(dim = 1))
+        down = self.down(temporal_mask)
+        predict = self.Segmentation_Module(down)
+        return temporal_mask, predict
+class Two_Level_Deeplab(nn.Module):
+    def __init__(self, num_classes, Unet_3D_channel = 64):
+        super().__init__()
+        warnings.filterwarnings('ignore')
+        self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
+        self.down = nn.Conv2d(in_channels = 16, out_channels = 3, kernel_size=3, padding = 1)
+        self.Segmentation_Module = DeepLab()
+    def forward(self, input, other_frame):
+        temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         down = self.down(temporal_mask)
         predict = self.Segmentation_Module(down)
         return temporal_mask, predict
