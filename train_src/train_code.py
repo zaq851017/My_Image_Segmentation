@@ -12,7 +12,6 @@ import imageio
 from train_src.Score import Scorer, Losser
 import logging
 import time
-from datetime import datetime
 ## need to remove before submit
 import ipdb
 from tqdm import tqdm
@@ -20,14 +19,8 @@ import matplotlib.pyplot as plt
 import argparse
 import segmentation_models_pytorch as smp
 import copy
-def train_continuous(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num):
+def train_continuous(config, logging, net, model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num):
     Sigmoid_func = nn.Sigmoid()
-    now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
-    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+"_"+str(continue_num)+".log")
-    print("log_name ", log_name)
-    logging.basicConfig(level=logging.DEBUG,
-                        handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
-    logging.info(config)
     for epoch in range(EPOCH):
         net.train()
         train_Scorer = Scorer(config)
@@ -41,8 +34,8 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 pn_mask = mask_list[:,1:,:,:].cuda()
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
-                loss = criterion(output, mask.float())
-                pn_loss = criterion(temporal_mask, pn_mask)
+                loss = criterion_single(output, mask.float())
+                pn_loss = criterion_temporal(temporal_mask, pn_mask)
                 GT = mask.cpu()
             else:
                 pn_frame = image_list[:,1:,:,:,:]
@@ -52,7 +45,7 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                 output = net(pn_frame)
                 output = output.squeeze(dim = 1)
                 loss = torch.tensor(0)
-                pn_loss = criterion(output, pn_mask.float())
+                pn_loss = criterion_temporal(output, pn_mask.float())
                 GT = mask.cpu()
                 output = torch.mean(output, dim = 1)
             total_loss = loss + pn_loss
@@ -143,14 +136,8 @@ def train_continuous(config, net, model_name, threshold, best_score, criterion, 
                     image_save_path = os.path.join(save_path, file_name[0].split("/")[-1])
                     cv2.imwrite(image_save_path, heat_img)
 
-def train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
-    Sigmoid_func = nn.Sigmoid()
-    now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
-    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+".log")
-    print("log_name ", log_name)
-    logging.basicConfig(level=logging.DEBUG,
-                        handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
-    logging.info(config)                   
+def train_single(config, logging, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
+    Sigmoid_func = nn.Sigmoid()      
     for epoch in range(EPOCH):
         net.train()
         train_Scorer = Scorer(config)

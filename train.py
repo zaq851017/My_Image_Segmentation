@@ -6,7 +6,6 @@ from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn
-from torchvision import transforms as T
 from PIL import Image
 import imageio
 ## need to remove before submit
@@ -14,6 +13,8 @@ import ipdb
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
+from datetime import datetime
+import logging
 ##net work
 import segmentation_models_pytorch as smp
 from network.Vgg_FCN8s import Single_vgg_FCN8s
@@ -25,6 +26,8 @@ from network.Unet3D import UNet_3D_Seg
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
+## loss
+from train_src.loss_func import DiceBCELoss
   
 def main(config):
     # parameter setting
@@ -72,19 +75,34 @@ def main(config):
     if config.pretrain_model != "":
         net.load_state_dict(torch.load(config.pretrain_model))
         print("pretrain model loaded!")
-    #net = nn.DataParallel(net)
+    now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
+    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+".log")
+    print("log_name ", log_name)
+    logging.basicConfig(level=logging.DEBUG,
+                        handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
+    logging.info(config)
     net = net.cuda()
     threshold = config.threshold
     best_score = config.best_score
-    train_weight = torch.FloatTensor([10 / 1]).cuda()
-    criterion = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+    if config.loss_func == 0:
+        criterion_single = nn.BCEWithLogitsLoss()
+        criterion_temporal = nn.BCEWithLogitsLoss()
+        logging.info("criterion_single = nn.BCEWithLogitsLoss()")
+        logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
+    elif config.loss_func == 1:
+        criterion_single = DiceBCELoss()
+        criterion_temporal = nn.BCEWithLogitsLoss()
+        logging.info("criterion_single = DiceBCELoss()")
+        logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     if config.resize_image == 0:
         crop_range_num = [150, 574, 70, 438]
+        logging.info("Crop range "+str(crop_range_num))
     elif config.resize_image == 1:
         crop_range_num = [150, 574, 70, 282]
+        logging.info("Crop range "+str(crop_range_num))
     if config.continuous == 0:
-        print("Single image version")
+        logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
                                 batch_size = BATCH_SIZE,
                                 mode = 'train',
@@ -97,9 +115,9 @@ def main(config):
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR)
+        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR)
     elif config.continuous == 1:
-        print("Continuous image version")
+        logging.info("Continuous image version")
         train_loader, continue_num = get_continuous_loader(image_path = config.train_data_path, 
                             batch_size = BATCH_SIZE,
                             mode = 'train',
@@ -112,7 +130,8 @@ def main(config):
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        train_continuous(config, net,model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num)
+        logging.info("temporal frame: "+str(continue_num))
+        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num)
 
 
 if __name__ == "__main__":
@@ -134,5 +153,6 @@ if __name__ == "__main__":
     parser.add_argument('--draw_image_path', type=str, default="")
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--resize_image', type=int, default=0)
+    parser.add_argument('--loss_func', type=int, default=0)
     config = parser.parse_args()
     main(config)

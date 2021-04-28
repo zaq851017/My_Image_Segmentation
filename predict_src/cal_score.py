@@ -10,15 +10,17 @@ def LISTDIR(path):
     out.sort()
     return out
 def read_predict_GT_mask(predict_path, GT_path):
-    temp_GT = np.zeros((1, 368, 424))
-    temp_predict = np.zeros((1, 368, 424))
     log_name = os.path.join(predict_path, "score.txt")
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
     logging.info("Predict_path:"+predict_path)
+    total_GT = np.zeros((1, 368, 424))
+    total_predict = np.zeros((1, 368, 424))
     for num_files in LISTDIR(predict_path):
         p_full_path = os.path.join(predict_path, num_files)
         G_full_path = os.path.join(GT_path, num_files)
+        temp_GT = np.zeros((1, 368, 424))
+        temp_predict = np.zeros((1, 368, 424))
         if os.path.isdir(p_full_path):
             for dir_files in LISTDIR(p_full_path):
                 p_mask_path = os.path.join(p_full_path, dir_files, "vol_mask")
@@ -35,20 +37,34 @@ def read_predict_GT_mask(predict_path, GT_path):
                     predict = np.expand_dims(predict, axis = 0)
                     temp_GT = np.concatenate((temp_GT, GT), axis = 0)
                     temp_predict = np.concatenate((temp_predict, predict), axis = 0)
+                    total_GT = np.concatenate((total_GT, GT), axis = 0)
+                    total_predict = np.concatenate((total_predict, predict), axis = 0)
+            for i in range(2):
+                tp_fp = np.sum(temp_predict[1:,:,:] == i)
+                tp_fn = np.sum(temp_GT[1:,:,:] == i)
+                tp = np.sum((temp_predict[1:,:,:] == i) * (temp_GT[1:,:,:] == i))
+                iou = tp / (tp_fp + tp_fn - tp)
+                if i == 0:
+                    background_iou = iou
+                else:
+                    MA_iou = iou
+            F1_score = f1_score(temp_GT[1:,:,:].flatten(), temp_predict[1:,:,:].flatten())
+            logging.info(p_full_path+"_backgroind iou: "+str(background_iou))
+            logging.info(p_full_path+"_MA iou: "+str(MA_iou))
+            logging.info(p_full_path+"_F1 score: "+str(F1_score))
     for i in range(2):
-        tp_fp = np.sum(temp_predict[1:,:,:] == i)
-        tp_fn = np.sum(temp_GT[1:,:,:] == i)
-        tp = np.sum((temp_predict[1:,:,:] == i) * (temp_GT[1:,:,:] == i))
+        tp_fp = np.sum(total_predict[1:,:,:] == i)
+        tp_fn = np.sum(total_GT[1:,:,:] == i)
+        tp = np.sum((total_predict[1:,:,:] == i) * (total_GT[1:,:,:] == i))
         iou = tp / (tp_fp + tp_fn - tp)
         if i == 0:
             background_iou = iou
         else:
             MA_iou = iou
-    F1_score = f1_score(temp_GT[1:,:,:].flatten(), temp_predict[1:,:,:].flatten())
-    logging.info("backgroind iou: "+str(background_iou))
-    logging.info("MA iou: "+str(MA_iou))
-    logging.info("F1 score: "+str(F1_score))
-    #score = f1_score(GT.flatten(), predict.flatten(), average='binary')
+    F1_score = f1_score(total_GT[1:,:,:].flatten(), total_predict[1:,:,:].flatten())
+    logging.info("Total_backgroind iou: "+str(background_iou))
+    logging.info("Total_MA iou: "+str(MA_iou))
+    logging.info("Total_F1 score: "+str(F1_score))
 
 def cal_score(config):
     read_predict_GT_mask(config.predict_path, config.GT_path)

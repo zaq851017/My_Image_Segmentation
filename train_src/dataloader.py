@@ -47,7 +47,6 @@ class ImageFolder(data.Dataset):
     def __init__(self, root, prob, mode = 'train', crop_range = [150, 574, 70, 438]):
         self.root = root
         self.crop_range = crop_range
-        print(self.crop_range)
         if mode == "train" or mode == "valid":
             self.image_paths = []
             self.mask_paths = []
@@ -133,11 +132,9 @@ class Continuos_Image(data.Dataset):
     def __init__(self, root, prob, mode = 'train', crop_range = [150, 574, 70, 438]):
         self.root = root
         self.crop_range = crop_range
-        print(self.crop_range)
         self.mode = mode
         self.augmentation_prob = prob
-        self.continuous_frame_num = [1, 2, 3, 4, 5, 6, 7, 8]
-        print("temporal frame", self.continuous_frame_num)
+        self.continuous_frame_num = [2, 4, 6, 8, 10, 12, 14, 16]
         if mode == "train" or mode == "valid":
             self.image_paths = {}
             self.mask_paths = {}
