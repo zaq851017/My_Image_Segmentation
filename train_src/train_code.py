@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import argparse
 import segmentation_models_pytorch as smp
 import copy
-def train_continuous(config, logging, net, model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num):
+def train_continuous(config, logging, net, model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num, now_time):
     Sigmoid_func = nn.Sigmoid()
     for epoch in range(EPOCH):
         net.train()
@@ -136,7 +136,7 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
                     image_save_path = os.path.join(save_path, file_name[0].split("/")[-1])
                     cv2.imwrite(image_save_path, heat_img)
 
-def train_single(config, logging, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):
+def train_single(config, logging, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, now_time):
     Sigmoid_func = nn.Sigmoid()      
     for epoch in range(EPOCH):
         net.train()

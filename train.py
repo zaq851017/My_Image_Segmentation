@@ -21,7 +21,7 @@ from network.Vgg_FCN8s import Single_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet
 from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
-from network.Double_Unet import Single_Double_Unet
+from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab
 from train_src.train_code import train_single, train_continuous
@@ -51,9 +51,9 @@ def main(config):
         model_name = "Single_Nested_Unet"
         print("Model Single_Nested_Unet")
     elif config.which_model == 5:
-        net = Single_Double_Unet(1)
-        model_name = "Single_Double_Unet"
-        print("Model Single_Double_Unet")
+        net = DeepLab()
+        model_name = "Single_DeepLab"
+        print("Model Single_DeepLab")
     elif config.which_model == 11:
         net = Two_Level_Res_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Res_Unet"
@@ -85,13 +85,17 @@ def main(config):
     threshold = config.threshold
     best_score = config.best_score
     if config.loss_func == 0:
-        criterion_single = nn.BCEWithLogitsLoss()
-        criterion_temporal = nn.BCEWithLogitsLoss()
+        train_weight = torch.FloatTensor([10 / 1]).cuda()
+        criterion_single = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+        criterion_temporal = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+        logging.info("train weight = "+str(train_weight))
         logging.info("criterion_single = nn.BCEWithLogitsLoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     elif config.loss_func == 1:
-        criterion_single = DiceBCELoss()
-        criterion_temporal = nn.BCEWithLogitsLoss()
+        train_weight = torch.FloatTensor([10 / 1]).cuda()
+        criterion_single = DiceBCELoss(weight = train_weight)
+        criterion_temporal = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+        logging.info("train weight = "+str(train_weight))
         logging.info("criterion_single = DiceBCELoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
@@ -115,7 +119,7 @@ def main(config):
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
-        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR)
+        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, now_time)
     elif config.continuous == 1:
         logging.info("Continuous image version")
         train_loader, continue_num = get_continuous_loader(image_path = config.train_data_path, 
@@ -131,7 +135,7 @@ def main(config):
                                 shffule_yn = False,
                                 crop_range = crop_range_num)
         logging.info("temporal frame: "+str(continue_num))
-        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num)
+        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
 
 if __name__ == "__main__":

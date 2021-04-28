@@ -10,6 +10,7 @@ def LISTDIR(path):
     out.sort()
     return out
 def read_predict_GT_mask(predict_path, GT_path):
+    print(predict_path)
     for num_files in LISTDIR(predict_path):
         p_full_path = os.path.join(predict_path, num_files)
         G_full_path = os.path.join(GT_path, num_files)
@@ -28,7 +29,10 @@ def read_predict_GT_mask(predict_path, GT_path):
                     GT = GT[70:438,150:574]
                     _, GT = cv2.threshold(GT, 127, 1, cv2.THRESH_BINARY)
                     _, predict = cv2.threshold(predict, 127, 1, cv2.THRESH_BINARY)
-                    residual_map = abs(GT-predict)
+                    residual_map = (GT-predict)
+                    residual_map[residual_map == 0] = 127
+                    residual_map[residual_map == 1] = 0
+                    residual_map[residual_map == -1] = 255
                     cv2.imwrite(os.path.join(write_path, p_mask_files), residual_map)
 def cal_score(config):
     read_predict_GT_mask(config.predict_path, config.GT_path)
