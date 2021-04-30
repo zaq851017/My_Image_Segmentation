@@ -85,9 +85,9 @@ class Single_Res_Unet(nn.Module):
         final = self.final(dec1)
         predict = F.upsample(final, x.size()[2:], mode='bilinear')
         return predict
-class Temporal_Res_Unet(nn.Module):
-    def __init__(self, num_classes):
-        super(Temporal_Res_Unet, self).__init__()
+class Single_Res_Unet_with_backbone(nn.Module):
+    def __init__(self, num_classes = 1):
+        super(Single_Res_Unet_with_backbone, self).__init__()
         warnings.filterwarnings('ignore')
         res = models.resnet34(pretrained=True)
         channel_num = 512

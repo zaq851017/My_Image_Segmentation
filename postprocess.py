@@ -23,7 +23,7 @@ from network.Vgg_FCN8s import Single_vgg_FCN8s
 from network.Vgg_Unet import Single_vgg_Unet
 from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
-from network.Double_Unet import Single_Double_Unet
+from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet
 
@@ -57,9 +57,9 @@ def main(config):
         model_name = "Single_Nested_Unet"
         print("Model Single_Nested_Unet")
     elif config.which_model == 5:
-        net = Single_Double_Unet(1)
-        model_name = "Single_Double_Unet"
-        print("Model Single_Double_Unet") 
+        net = DeepLab()
+        model_name = "Single_DeepLab"
+        print("Model Single_DeepLab")
     elif config.which_model == 11:
         net = Two_Level_Res_Unet(1, config.Unet_3D_channel)
         model_name = "Two_Level_Res_Unet"

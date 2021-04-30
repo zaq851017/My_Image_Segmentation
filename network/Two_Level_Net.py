@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch import nn
 import warnings
 from network.Unet3D import UNet_3D
-from network.Res_Unet import Temporal_Res_Unet, Single_Res_Unet
+from network.Res_Unet import Single_Res_Unet_with_backbone, Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from torchvision import models
@@ -18,39 +18,51 @@ class _Temporal_Module(nn.Module):
         temporal_result = self.ED(other_frame)
         return temporal_result
 class Two_Level_Nested_Unet(nn.Module):
-    def __init__(self, num_classes, Unet_3D_channel = 64):
+    def __init__(self, num_classes, Unet_3D_channel = 64, continue_num = 8):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = 14)
+        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = continue_num * 2)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         predict = self.Segmentation_Module(temporal_mask)
         return temporal_mask, predict
 class Two_Level_Res_Unet(nn.Module):
-    def __init__(self, num_classes, Unet_3D_channel = 64):
+    def __init__(self, num_classes, Unet_3D_channel = 64, continue_num = 8):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 16, out_channels = 3, kernel_size=3, padding = 1)
-        #res = models.resnet34(pretrained=True)
-        #self.feature_extractor = nn.Sequential(*list(res.children())[:-2])
+        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
         self.Segmentation_Module = Single_Res_Unet(num_classes)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
-        #frame_feature = self.feature_extractor(input.squeeze(dim = 1))
         down = self.down(temporal_mask)
         predict = self.Segmentation_Module(down)
         return temporal_mask, predict
 class Two_Level_Deeplab(nn.Module):
-    def __init__(self, num_classes, Unet_3D_channel = 64):
+    def __init__(self, num_classes, Unet_3D_channel = 64, continue_num = 8):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 16, out_channels = 3, kernel_size=3, padding = 1)
+        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
         self.Segmentation_Module = DeepLab()
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         down = self.down(temporal_mask)
         predict = self.Segmentation_Module(down)
+        return temporal_mask, predict
+class Two_Level_Res_Unet_with_backbone(nn.Module):
+    def __init__(self, num_classes, Unet_3D_channel = 64, continue_num = 8):
+        super().__init__()
+        warnings.filterwarnings('ignore')
+        self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
+        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        res = models.resnet34(pretrained=True)
+        self.feature_extractor = nn.Sequential(*list(res.children())[:-2])
+        self.Segmentation_Module = Single_Res_Unet_with_backbone(num_classes)
+    def forward(self, input, other_frame):
+        temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
+        frame_feature = self.feature_extractor(input.squeeze(dim = 1))
+        down = self.down(temporal_mask)
+        predict = self.Segmentation_Module(frame_feature, down)
         return temporal_mask, predict

@@ -23,7 +23,7 @@ from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 ## loss
@@ -34,6 +34,7 @@ def main(config):
     LR = config.learning_rate
     EPOCH = config.epoch
     BATCH_SIZE = config.batch_size
+    frame_continue_num = list(map(int, config.continue_num))
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
         model_name = "Single_vgg__FCN8s"
@@ -55,11 +56,11 @@ def main(config):
         model_name = "Single_DeepLab"
         print("Model Single_DeepLab")
     elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1, config.Unet_3D_channel)
+        net = Two_Level_Res_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "Two_Level_Res_Unet"
         print("Model Two_Level_Res_Unet")
     elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel)
+        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "Two_Level_Nested_Unet"
         print("Model Two_Level_Nested_Unet")
     elif config.which_model == 13:
@@ -67,9 +68,13 @@ def main(config):
         model_name = "UNet_3D_Seg"
         print("Model UNet_3D_Seg")
     elif config.which_model == 14:
-        net = Two_Level_Deeplab(1, config.Unet_3D_channel)
+        net = Two_Level_Deeplab(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "Two_Level_Deeplab"
         print("Two_Level_Deeplab")
+    elif config.which_model == 15:
+        net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
+        model_name = "Two_Level_Res_Unet_with_backbone"
+        print("Two_Level_Res_Unet_with_backbone")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -127,13 +132,15 @@ def main(config):
                             mode = 'train',
                             augmentation_prob = config.augmentation_prob,
                             shffule_yn = True,
-                            crop_range = crop_range_num)
+                            crop_range = crop_range_num,
+                            continue_num = frame_continue_num)
         valid_loader, continue_num = get_continuous_loader(image_path = config.valid_data_path,
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
-                                crop_range = crop_range_num)
+                                crop_range = crop_range_num,
+                                continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
         train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
@@ -158,5 +165,6 @@ if __name__ == "__main__":
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--resize_image', type=int, default=0)
     parser.add_argument('--loss_func', type=int, default=0)
+    parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     config = parser.parse_args()
     main(config)
