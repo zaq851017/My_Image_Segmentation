@@ -157,10 +157,10 @@ class Continuos_Image(data.Dataset):
                     total_img_num = []
                     total_mask_num = []
                     for i in range(len(temp_img_list)):
-                        previous_num = []
-                        next_num = []
+                        list_num = []
                         frame_num = int(temp_img_list[i].split("/")[-1].split(".")[0][-3:])
                         for check_frame in self.continuous_frame_num:
+                            """
                             if frame_num - check_frame < 0:
                                 previous_num.append(img_dir_file+ "/frame" + "%03d" % i + ".jpg")
                             else:
@@ -169,23 +169,39 @@ class Continuos_Image(data.Dataset):
                                 next_num.append(img_dir_file+ "/frame"+ "%03d" % i + ".jpg")
                             else:
                                 next_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
-                        order_num = [img_dir_file+"/frame" + "%03d"% frame_num+".jpg"] + previous_num + next_num
+                            """
+                            if frame_num + check_frame < 0:
+                                list_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
+                            elif frame_num + check_frame > len(temp_img_list) - 1:
+                                list_num.append(mask_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + "_out.jpg")
+                            else:
+                                list_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
+                        order_num = [img_dir_file+"/frame" + "%03d"% frame_num+".jpg"] + list_num
                         total_img_num.append(order_num)
 
                     for i in range(len(temp_mask_list)):
-                        previous_num = []
-                        next_num = []
+                        list_num = []
                         frame_num = int(temp_mask_list[i].split("/")[-1].split(".")[0][5:8])
                         for check_frame in self.continuous_frame_num:
+                            ## last version
+                            """
                             if frame_num - check_frame < 0:
-                                previous_num.append(mask_dir_file+"/frame" + "%03d" % i + "_out.jpg")
+                                previous_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
                             else:
                                 previous_num.append(mask_dir_file+"/frame"+ "%03d" % (frame_num - check_frame)+ "_out.jpg")
                             if frame_num + check_frame > len(temp_img_list) - 1:
-                                next_num.append(mask_dir_file+"/frame"+ "%03d" % i + "_out.jpg")
+                                next_num.append(mask_dir_file+"/frame"+ "%03d" % len(temp_img_list) - 1 + "_out.jpg")
                             else:
                                 next_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
-                        order_num = [mask_dir_file+ "/frame" + "%03d"% frame_num+"_out.jpg"] + previous_num + next_num
+                            """
+                            ## new version
+                            if frame_num + check_frame < 0:
+                                list_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
+                            elif frame_num + check_frame > len(temp_img_list) - 1:
+                                list_num.append(mask_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + "_out.jpg")
+                            else:
+                                list_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
+                        order_num = [mask_dir_file+ "/frame" + "%03d"% frame_num+"_out.jpg"] + list_num
                         total_mask_num.append(order_num)
                     self.image_paths[img_dir_file] = total_img_num
                     self.mask_paths[mask_dir_file] = total_mask_num

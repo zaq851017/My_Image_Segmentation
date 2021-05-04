@@ -2,6 +2,7 @@ import numpy as np
 import os
 import torch
 import cv2
+import sys
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 import torch.optim as optim
@@ -85,6 +86,7 @@ def main(config):
     print("log_name ", log_name)
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
+    logging.info(sys.argv)
     logging.info(config)
     net = net.cuda()
     threshold = config.threshold

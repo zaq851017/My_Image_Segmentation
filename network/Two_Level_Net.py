@@ -22,7 +22,7 @@ class Two_Level_Nested_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = continue_num * 2)
+        self.Segmentation_Module = Single_Nested_Unet(num_classes, input_channels = continue_num )
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         predict = self.Segmentation_Module(temporal_mask)
@@ -32,7 +32,7 @@ class Two_Level_Res_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        self.down = nn.Conv2d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
         self.Segmentation_Module = Single_Res_Unet(num_classes)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
@@ -44,7 +44,7 @@ class Two_Level_Deeplab(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        self.down = nn.Conv2d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
         self.Segmentation_Module = DeepLab()
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
@@ -56,7 +56,7 @@ class Two_Level_Res_Unet_with_backbone(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = 2*continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        self.down = nn.Conv2d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
         res = models.resnet34(pretrained=True)
         self.feature_extractor = nn.Sequential(*list(res.children())[:-2])
         self.Segmentation_Module = Single_Res_Unet_with_backbone(num_classes)
