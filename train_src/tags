@@ -1,3 +1,0 @@
-!_TAG_FILE_SORTED	2	/0=unsorted, 1=sorted, 2=foldcase/
-train_continuous	/home/zaq851017/My_Image_Segmentation/train_src/train_code.py	/^def train_continuous(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):$/;"	f	language:Python
-train_single	/home/zaq851017/My_Image_Segmentation/train_src/train_code.py	/^def train_single(config, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR):$/;"	f	language:Python

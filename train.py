@@ -106,27 +106,24 @@ def main(config):
         logging.info("criterion_single = DiceBCELoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
-    if config.resize_image == 0:
-        crop_range_num = [150, 574, 70, 438]
-        logging.info("Crop range "+str(crop_range_num))
-    elif config.resize_image == 1:
-        crop_range_num = [150, 574, 70, 282]
-        logging.info("Crop range "+str(crop_range_num))
     if config.continuous == 0:
         logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
                                 batch_size = BATCH_SIZE,
                                 mode = 'train',
                                 augmentation_prob = config.augmentation_prob,
-                                shffule_yn = True,
-                                crop_range = crop_range_num)
+                                shffule_yn = True)
         valid_loader = get_loader(image_path = config.valid_data_path,
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
-                                shffule_yn = False,
-                                crop_range = crop_range_num)
-        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, now_time)
+                                shffule_yn = False)
+        test_loader = get_loader(image_path = config.valid_data_path,
+                                batch_size = 1,
+                                mode = 'test',
+                                augmentation_prob = 0.,
+                                shffule_yn = False)
+        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, now_time)
     elif config.continuous == 1:
         logging.info("Continuous image version")
         train_loader, continue_num = get_continuous_loader(image_path = config.train_data_path, 
@@ -134,17 +131,21 @@ def main(config):
                             mode = 'train',
                             augmentation_prob = config.augmentation_prob,
                             shffule_yn = True,
-                            crop_range = crop_range_num,
                             continue_num = frame_continue_num)
         valid_loader, continue_num = get_continuous_loader(image_path = config.valid_data_path,
                                 batch_size = 1,
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False,
-                                crop_range = crop_range_num,
+                                continue_num = frame_continue_num)
+        test_loader, continue_num = get_continuous_loader(image_path = config.test_data_path,
+                                batch_size = 1,
+                                mode = 'test',
+                                augmentation_prob = 0.,
+                                shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, valid_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
 
 if __name__ == "__main__":
@@ -159,13 +160,11 @@ if __name__ == "__main__":
     parser.add_argument('--threshold', type=float, default=0.7)
     parser.add_argument('--train_data_path', type=str, default="Medical_data/train/")
     parser.add_argument('--valid_data_path', type=str, default="Medical_data/valid/")
-    parser.add_argument('--test_data_path', type=str, default="Medical_data/valid/")
+    parser.add_argument('--test_data_path', type=str, default="Medical_data/test/")
     parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
-    parser.add_argument('--draw_image', type=int, default=0)
-    parser.add_argument('--draw_image_path', type=str, default="")
+    parser.add_argument('--draw_image_path', type=str, default="Medical_data/test_image_output/")
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
-    parser.add_argument('--resize_image', type=int, default=0)
     parser.add_argument('--loss_func', type=int, default=0)
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     config = parser.parse_args()

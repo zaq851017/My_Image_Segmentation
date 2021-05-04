@@ -15,10 +15,7 @@ def label_mask(m_array):
     new_mrray[m_array >= 128 ] = 1
     return new_mrray
 
-def preprocess_img(image, x1 = 150, x2 = 574, y1 = 70, y2 = 438):
-    # x1, x2, y1, y2 = [150, 574, 70, 438]
-    image = image.resize((720, 540))
-    image = image.crop((x1, y1, x2, y2))
+def preprocess_img(image):
     Transform = []
     Transform.append(T.ToTensor())
     Transform = T.Compose(Transform)
@@ -26,15 +23,11 @@ def preprocess_img(image, x1 = 150, x2 = 574, y1 = 70, y2 = 438):
     Norm_ = T.Normalize((0.486, 0.456, 0.406), (0.229, 0.224, 0.225))
     image = Norm_(image)
     return image
-def preprocess_mask(mask, x1 = 150, x2 = 574, y1 = 70, y2 = 438):
-    mask = mask.resize((720, 540))
-    mask = mask.crop((x1, y1, x2, y2))
+def preprocess_mask(mask):
     mask = np.array(mask)
     mask = label_mask(mask)
     return mask
-def test_preprocess_img(image, x1 = 150, x2 = 574, y1 = 70, y2 = 438):
-    image = image.resize((720, 540))
-    image = image.crop((x1, y1, x2, y2))
+def test_preprocess_img(image):
     crop_origin_image = image
     Transform = []
     Transform.append(T.ToTensor())
@@ -44,9 +37,8 @@ def test_preprocess_img(image, x1 = 150, x2 = 574, y1 = 70, y2 = 438):
     image = Norm_(image)
     return crop_origin_image, image
 class ImageFolder(data.Dataset):
-    def __init__(self, root, prob, mode = 'train', crop_range = [150, 574, 70, 438]):
+    def __init__(self, root, prob, mode = 'train'):
         self.root = root
-        self.crop_range = crop_range
         if mode == "train" or mode == "valid":
             self.image_paths = []
             self.mask_paths = []
@@ -100,8 +92,8 @@ class ImageFolder(data.Dataset):
             mask_path = self.mask_paths[index]
             image = Image.open(image_path).convert('RGB')
             mask = Image.open(mask_path).convert("L")
-            image = preprocess_img(image, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3])
-            mask = preprocess_mask(mask, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3])
+            image = preprocess_img(image)
+            mask = preprocess_mask(mask)
             mask = torch.tensor(mask, dtype=torch.long) 
             if self.augmentation_prob > np.random.rand():
                 transform = T.Compose([
@@ -115,23 +107,22 @@ class ImageFolder(data.Dataset):
             file_name = self.image_paths[index]
             image_path = self.image_paths[index]
             image = Image.open(image_path).convert('RGB')
-            crop_origin_image, image = test_preprocess_img(image, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3])
+            crop_origin_image, image = test_preprocess_img(image)
             return  np.array(crop_origin_image), file_name, image
             
     def __len__(self):
         return len(self.image_paths)
 
-def get_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False, crop_range = [150, 574, 70, 438]):
-    dataset = ImageFolder(root = image_path, prob = augmentation_prob,mode = mode, crop_range = crop_range)
+def get_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False):
+    dataset = ImageFolder(root = image_path, prob = augmentation_prob,mode = mode)
     data_loader = data.DataLoader(dataset=dataset,
 								  batch_size=batch_size,
 								  shuffle=shffule_yn,
                                   drop_last=True)
     return data_loader
 class Continuos_Image(data.Dataset):
-    def __init__(self, root, prob, mode = 'train', crop_range = [150, 574, 70, 438], continuous_frame_num = [1, 2, 3, 4, 5, 6, 7, 8]):
+    def __init__(self, root, prob, mode = 'train', continuous_frame_num = [1, 2, 3, 4, 5, 6, 7, 8]):
         self.root = root
-        self.crop_range = crop_range
         self.mode = mode
         self.augmentation_prob = prob
         self.continuous_frame_num = continuous_frame_num
@@ -160,22 +151,12 @@ class Continuos_Image(data.Dataset):
                         list_num = []
                         frame_num = int(temp_img_list[i].split("/")[-1].split(".")[0][-3:])
                         for check_frame in self.continuous_frame_num:
-                            """
-                            if frame_num - check_frame < 0:
-                                previous_num.append(img_dir_file+ "/frame" + "%03d" % i + ".jpg")
-                            else:
-                                previous_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num - check_frame)+ ".jpg")
-                            if frame_num + check_frame > len(temp_img_list) - 1:
-                                next_num.append(img_dir_file+ "/frame"+ "%03d" % i + ".jpg")
-                            else:
-                                next_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
-                            """
                             if frame_num + check_frame < 0:
-                                list_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
+                                list_num.append(img_dir_file+"/frame" + "%03d" % 0 + ".jpg")
                             elif frame_num + check_frame > len(temp_img_list) - 1:
-                                list_num.append(mask_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + "_out.jpg")
+                                list_num.append(img_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + ".jpg")
                             else:
-                                list_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
+                                list_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
                         order_num = [img_dir_file+"/frame" + "%03d"% frame_num+".jpg"] + list_num
                         total_img_num.append(order_num)
 
@@ -183,18 +164,6 @@ class Continuos_Image(data.Dataset):
                         list_num = []
                         frame_num = int(temp_mask_list[i].split("/")[-1].split(".")[0][5:8])
                         for check_frame in self.continuous_frame_num:
-                            ## last version
-                            """
-                            if frame_num - check_frame < 0:
-                                previous_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
-                            else:
-                                previous_num.append(mask_dir_file+"/frame"+ "%03d" % (frame_num - check_frame)+ "_out.jpg")
-                            if frame_num + check_frame > len(temp_img_list) - 1:
-                                next_num.append(mask_dir_file+"/frame"+ "%03d" % len(temp_img_list) - 1 + "_out.jpg")
-                            else:
-                                next_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
-                            """
-                            ## new version
                             if frame_num + check_frame < 0:
                                 list_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
                             elif frame_num + check_frame > len(temp_img_list) - 1:
@@ -223,27 +192,24 @@ class Continuos_Image(data.Dataset):
                     img_dir_file = "/".join(temp_img_list[0].split("/")[:-1])
                     total_img_num = []
                     for i in range(len(temp_img_list)):
-                        previous_num = []
-                        next_num = []
+                        list_num = []
                         frame_num = int(temp_img_list[i].split("/")[-1].split(".")[0][-3:])
                         for check_frame in self.continuous_frame_num:
-                            if frame_num - check_frame < 0:
-                                previous_num.append(img_dir_file+ "/frame" + "%03d" % i + ".jpg")
+                            if frame_num + check_frame < 0:
+                                list_num.append(img_dir_file+"/frame" + "%03d" % 0 + ".jpg")
+                            elif frame_num + check_frame > len(temp_img_list) - 1:
+                                list_num.append(img_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + ".jpg")
                             else:
-                                previous_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num - check_frame)+ ".jpg")
-                            if frame_num + check_frame > len(temp_img_list) - 1:
-                                next_num.append(img_dir_file+ "/frame"+ "%03d" % i + ".jpg")
-                            else:
-                                next_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
-                        order_num = [img_dir_file+"/frame" + "%03d"% frame_num+".jpg"] + previous_num + next_num
+                                list_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
+                        order_num = [img_dir_file+ "/frame" + "%03d"% frame_num+".jpg"] + list_num
                         total_img_num.append(order_num)
                     self.image_paths[img_dir_file] = total_img_num
             temp_list = [*self.image_paths.values()]
             self.image_paths_list = [val for sublist in temp_list for val in sublist]
         print("image count in {} path :{}".format(self.mode,len(self.image_paths_list)))
     def __getitem__(self, index):
-        dist_x = self.crop_range[1] - self.crop_range[0]
-        dist_y = self.crop_range[3] - self.crop_range[2]
+        dist_x = 424
+        dist_y = 368
         if self.mode == "train" or self.mode == "valid":
             image_list = self.image_paths_list[index]
             mask_list = self.mask_paths_list[index]
@@ -251,11 +217,11 @@ class Continuos_Image(data.Dataset):
             mask = []
             for image_path in image_list:
                 i_image = Image.open(image_path).convert('RGB')
-                image = torch.cat((image, preprocess_img(i_image, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3]).cuda()), dim = 0)
+                image = torch.cat((image, preprocess_img(i_image).cuda()), dim = 0)
             image = image.view(-1, 3, dist_y, dist_x)
             for mask_path in mask_list:
                 i_mask = Image.open(mask_path).convert("L")
-                mask.append(preprocess_mask(i_mask, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3]))
+                mask.append(preprocess_mask(i_mask))
             mask = np.array(mask)
             return image_list, image, mask
         if self.mode == "test":
@@ -263,17 +229,17 @@ class Continuos_Image(data.Dataset):
             image = torch.tensor([]).cuda()
             for i, image_path in enumerate(image_list):
                 i_image = Image.open(image_path).convert('RGB')
-                image = torch.cat((image, test_preprocess_img(i_image, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3])[1].cuda()), dim = 0)
+                image = torch.cat((image, test_preprocess_img(i_image)[1].cuda()), dim = 0)
                 if i == 0:
-                    o_image = np.array(test_preprocess_img(i_image, x1 = self.crop_range[0], x2 = self.crop_range[1], y1 = self.crop_range[2], y2 = self.crop_range[3])[0])
+                    o_image = np.array(test_preprocess_img(i_image)[0])
             image = image.view(-1, 3, dist_y, dist_x)
             return o_image, image_list[0], image
     def __len__(self):
         return len(self.image_paths_list)
     def its_continue_num(self):
         return self.continuous_frame_num
-def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False, crop_range = [150, 574, 70, 438], continue_num = [1, 2, 3, 4, 5, 6, 7, 8]):
-    dataset = Continuos_Image(root = image_path, prob = augmentation_prob,mode = mode, crop_range = crop_range, continuous_frame_num = continue_num)
+def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffule_yn = False, continue_num = [1, 2, 3, 4, 5, 6, 7, 8]):
+    dataset = Continuos_Image(root = image_path, prob = augmentation_prob,mode = mode, continuous_frame_num = continue_num)
     data_loader = data.DataLoader(dataset=dataset,
 								  batch_size=batch_size,
 								  shuffle=shffule_yn,

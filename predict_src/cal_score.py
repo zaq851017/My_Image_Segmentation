@@ -30,7 +30,6 @@ def read_predict_GT_mask(predict_path, GT_path):
                     img_GT_path = os.path.join(G_mask_path, p_mask_files.split(".")[0]+"_out.jpg")
                     predict = cv2.imread(img_predict_path, cv2.IMREAD_GRAYSCALE)
                     GT = cv2.imread(img_GT_path, cv2.IMREAD_GRAYSCALE)
-                    GT = GT[70:438,150:574]
                     _, GT = cv2.threshold(GT, 127, 1, cv2.THRESH_BINARY)
                     _, predict = cv2.threshold(predict, 127, 1, cv2.THRESH_BINARY)
                     GT = np.expand_dims(GT, axis = 0)
@@ -65,9 +64,10 @@ def read_predict_GT_mask(predict_path, GT_path):
     logging.info("Total_backgroind iou: "+str(background_iou))
     logging.info("Total_MA iou: "+str(MA_iou))
     logging.info("Total_F1 score: "+str(F1_score))
+    return F1_score, MA_iou
 
 def cal_score(config):
-    read_predict_GT_mask(config.predict_path, config.GT_path)
+    F1_score, MA_iou = read_predict_GT_mask(config.predict_path, config.GT_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
