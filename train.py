@@ -118,7 +118,7 @@ def main(config):
                                 mode = 'valid',
                                 augmentation_prob = 0.,
                                 shffule_yn = False)
-        test_loader = get_loader(image_path = config.valid_data_path,
+        test_loader = get_loader(image_path = config.test_data_path,
                                 batch_size = 1,
                                 mode = 'test',
                                 augmentation_prob = 0.,
