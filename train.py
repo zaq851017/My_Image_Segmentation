@@ -24,6 +24,7 @@ from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
+from network.PraNet import PraNet
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
@@ -49,9 +50,9 @@ def main(config):
         model_name = "Single_Res_Unet"
         print("Model Single_Res_Unet")
     elif config.which_model == 4:
-        net = Single_Nested_Unet(1)
-        model_name = "Single_Nested_Unet"
-        print("Model Single_Nested_Unet")
+        net = PraNet(1)
+        model_name = "Single_PraNet"
+        print("Model Single_PraNet")
     elif config.which_model == 5:
         net = DeepLab()
         model_name = "Single_DeepLab"
@@ -81,6 +82,8 @@ def main(config):
     if config.pretrain_model != "":
         net.load_state_dict(torch.load(config.pretrain_model))
         print("pretrain model loaded!")
+    if config.data_parallel == 1:
+        net = nn.DataParallel(net)
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
     log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+".log")
     print("log_name ", log_name)
@@ -167,5 +170,6 @@ if __name__ == "__main__":
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--loss_func', type=int, default=0)
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
+    parser.add_argument('--data_parallel', type=int, default=0)
     config = parser.parse_args()
     main(config)

@@ -208,8 +208,8 @@ class Continuos_Image(data.Dataset):
             self.image_paths_list = [val for sublist in temp_list for val in sublist]
         print("image count in {} path :{}".format(self.mode,len(self.image_paths_list)))
     def __getitem__(self, index):
-        dist_x = 424
-        dist_y = 368
+        dist_x = 416
+        dist_y = 352
         if self.mode == "train" or self.mode == "valid":
             image_list = self.image_paths_list[index]
             mask_list = self.mask_paths_list[index]
