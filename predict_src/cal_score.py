@@ -27,13 +27,13 @@ def read_predict_GT_mask(predict_path, GT_path):
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
     logging.info("Predict_path:"+predict_path)
-    total_GT = np.zeros((1, 368, 424))
-    total_predict = np.zeros((1, 368, 424))
+    total_GT = np.zeros((1, 352, 416))
+    total_predict = np.zeros((1, 352, 416))
     for num_files in LISTDIR(predict_path):
         p_full_path = os.path.join(predict_path, num_files)
         G_full_path = os.path.join(GT_path, num_files)
-        temp_GT = np.zeros((1, 368, 424))
-        temp_predict = np.zeros((1, 368, 424))
+        temp_GT = np.zeros((1, 352, 416))
+        temp_predict = np.zeros((1, 352, 416))
         if os.path.isdir(p_full_path):
             for dir_files in LISTDIR(p_full_path):
                 p_mask_path = os.path.join(p_full_path, dir_files, "vol_mask")
