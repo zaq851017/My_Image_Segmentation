@@ -110,6 +110,7 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
         random_para = -0.7
     elif config.random_train == 1:
         random_para = 0.8
+    loss_div = len(continue_num) * 2
     for epoch in range(EPOCH):
         net.train()
         train_Scorer = Scorer(config)
@@ -126,7 +127,7 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
             pn_loss = criterion_temporal(temporal_mask, pn_mask)
             GT = mask.cpu()
             if random.random() >= random_para:
-                total_loss = loss + pn_loss
+                total_loss = loss/loss_div + pn_loss
                 OPTIMIZER.zero_grad() 
                 total_loss.backward()
                 OPTIMIZER.step()
