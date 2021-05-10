@@ -25,7 +25,7 @@ def LISTDIR(path):
     return out
 def frame2video(path):
     video_path = (path[:-6])
-    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (848, 368))
+    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (832, 352))
     for frame_files in  LISTDIR(path):
         if frame_files[-3:] == "jpg":
             full_path = os.path.join(path, frame_files)
@@ -196,18 +196,19 @@ def test_wo_postprocess(config, test_loader, net):
         for dir_files in (LISTDIR(config.output_path)):
             full_path = os.path.join(config.output_path, dir_files)
             o_full_path = os.path.join(config.input_path, dir_files)
-            for num_files in tqdm(LISTDIR(full_path)):
-                full_path_2 = os.path.join(full_path, num_files+"/merge")
-                height_path = os.path.join(o_full_path, num_files, "height.txt")
-                s_height_path = os.path.join(full_path, num_files)
-                os.system("cp "+height_path+" "+s_height_path)
-                print("cp "+height_path+" "+s_height_path)
-                frame2video(full_path_2)
-                if config.keep_image == 0:
-                    full_path_3 = os.path.join(full_path, num_files+"/original")
-                    full_path_4 = os.path.join(full_path, num_files+"/forfilm")
-                    os.system("rm -r "+full_path_3)
-                    os.system("rm -r "+full_path_4)
+            if os.path.isdir(full_path):
+                for num_files in tqdm(LISTDIR(full_path)):
+                    full_path_2 = os.path.join(full_path, num_files+"/merge")
+                    height_path = os.path.join(o_full_path, num_files, "height.txt")
+                    s_height_path = os.path.join(full_path, num_files)
+                    os.system("cp "+height_path+" "+s_height_path)
+                    print("cp "+height_path+" "+s_height_path)
+                    frame2video(full_path_2)
+                    if config.keep_image == 0:
+                        full_path_3 = os.path.join(full_path, num_files+"/original")
+                        full_path_4 = os.path.join(full_path, num_files+"/forfilm")
+                        os.system("rm -r "+full_path_3)
+                        os.system("rm -r "+full_path_4)
 def test_w_postprocess(config, test_loader, net):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
@@ -252,6 +253,16 @@ def test_w_postprocess(config, test_loader, net):
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
+            if config.draw_temporal == 1:
+                temp = [config.output_path] + file_name[0].split("/")[2:-2]
+                write_path = "/".join(temp)
+                if not os.path.isdir(write_path+"/temporal_mask"):
+                    os.makedirs(write_path+"/temporal_mask")
+                for j in range(temporal_mask.shape[1]):
+                    temporal_res = temporal_mask[:,j:j+1,:,:].squeeze(dim = 1)
+                    t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
+                    t_img_name = file_name[0].split("/")[-1].split(".")[0]+"_"+str(j)+".jpg"
+                    cv2.imwrite(os.path.join(write_path+"/temporal_mask", t_img_name), t_SR*255)
         bound_list.append(i)
         postprocess_continue_list = copy.deepcopy(continue_list)
         postprocess_continue_list = Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30)
@@ -296,15 +307,16 @@ def test_w_postprocess(config, test_loader, net):
         for dir_files in (LISTDIR(config.output_path)):
             full_path = os.path.join(config.output_path, dir_files)
             o_full_path = os.path.join(config.input_path, dir_files)
-            for num_files in tqdm(LISTDIR(full_path)):
-                full_path_2 = os.path.join(full_path, num_files+"/merge")
-                height_path = os.path.join(o_full_path, num_files, "height.txt")
-                s_height_path = os.path.join(full_path, num_files)
-                os.system("cp "+height_path+" "+s_height_path)
-                print("cp "+height_path+" "+s_height_path)
-                frame2video(full_path_2)
-                if config.keep_image == 0:
-                    full_path_3 = os.path.join(full_path, num_files+"/original")
-                    full_path_4 = os.path.join(full_path, num_files+"/forfilm")
-                    os.system("rm -r "+full_path_3)
-                    os.system("rm -r "+full_path_4)
+            if os.path.isdir(full_path):
+                for num_files in tqdm(LISTDIR(full_path)):
+                    full_path_2 = os.path.join(full_path, num_files+"/merge")
+                    height_path = os.path.join(o_full_path, num_files, "height.txt")
+                    s_height_path = os.path.join(full_path, num_files)
+                    os.system("cp "+height_path+" "+s_height_path)
+                    print("cp "+height_path+" "+s_height_path)
+                    frame2video(full_path_2)
+                    if config.keep_image == 0:
+                        full_path_3 = os.path.join(full_path, num_files+"/original")
+                        full_path_4 = os.path.join(full_path, num_files+"/forfilm")
+                        os.system("rm -r "+full_path_3)
+                        os.system("rm -r "+full_path_4)

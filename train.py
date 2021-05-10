@@ -25,8 +25,8 @@ from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
 from network.PraNet import PraNet
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
-from train_src.train_code import train_single, train_continuous
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module
+from train_src.train_code import train_single, train_continuous, train_temporal
 from train_src.dataloader import get_loader, get_continuous_loader
 ## loss
 from train_src.loss_func import DiceBCELoss
@@ -36,7 +36,10 @@ def main(config):
     LR = config.learning_rate
     EPOCH = config.epoch
     BATCH_SIZE = config.batch_size
-    frame_continue_num = list(map(int, config.continue_num))
+    if config.continuous == 0:
+        frame_continue_num = 0
+    else:
+        frame_continue_num = list(map(int, config.continue_num))
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
         model_name = "Single_vgg__FCN8s"
@@ -77,6 +80,10 @@ def main(config):
         net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "Two_Level_Res_Unet_with_backbone"
         print("Two_Level_Res_Unet_with_backbone")
+    elif config.which_model == -1:
+        net = _Temporal_Module(1, config.Unet_3D_channel)
+        model_name = "_Temporal_Module"
+        print("_Temporal_Module")
     elif config.which_model == 0:
         print("No assign which model!")
     if config.pretrain_model != "":
@@ -85,7 +92,7 @@ def main(config):
     if config.data_parallel == 1:
         net = nn.DataParallel(net)
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
-    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+".log")
+    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+"_"+str(frame_continue_num)+".log")
     print("log_name ", log_name)
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
@@ -148,7 +155,11 @@ def main(config):
                                 shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+        if config.which_model != -1:
+            train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+        else:
+            train_temporal(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+
 
 
 if __name__ == "__main__":
@@ -166,10 +177,12 @@ if __name__ == "__main__":
     parser.add_argument('--test_data_path', type=str, default="Medical_data/test/")
     parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
+    parser.add_argument('--draw_temporal', type=int, default=0)
     parser.add_argument('--draw_image_path', type=str, default="Medical_data/test_image_output/")
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--loss_func', type=int, default=0)
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     parser.add_argument('--data_parallel', type=int, default=0)
+    parser.add_argument('--random_train', type=int, default=0)
     config = parser.parse_args()
     main(config)
