@@ -20,7 +20,7 @@ import argparse
 import segmentation_models_pytorch as smp
 import copy
 import random
-def train_single(config, logging, net, model_name, threshold, best_score, criterion, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, now_time):
+def train_single(config, logging, net, model_name, threshold, best_score, criterion, OPTIMIZER, scheduler, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, now_time):
     Sigmoid_func = nn.Sigmoid()
     if config.random_train == 0:
         random_para = -0.7
@@ -30,6 +30,7 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
         net.train()
         train_Scorer = Scorer(config)
         train_Losser = Losser()
+        scheduler.step()
         for i, (image, mask) in tqdm(enumerate(train_loader)):
             if random.random() >= random_para:
                 image = image.cuda()
@@ -96,26 +97,27 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Loss: %.4f' %(epoch+1, f1, iou, valid_Losser.mean()))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
-            if f1 >= best_score or epoch % 5 == 0:
-                best_score = f1
+            if iou >= best_score or (epoch+1) % 5 == 0:
+                best_score = iou
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,4))+".pt")
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(best_score,4))+".pt")
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)
 
-def train_continuous(config, logging, net, model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num, now_time):
+def train_continuous(config, logging, net, model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, scheduler, train_loader, valid_loader, test_loader, batch_size, EPOCH, LR, continue_num, now_time):
     Sigmoid_func = nn.Sigmoid()
     if config.random_train == 0:
         random_para = -0.7
     elif config.random_train == 1:
         random_para = 0.8
-    loss_div = len(continue_num) * 2
+    loss_div = len(continue_num)
     for epoch in range(EPOCH):
         net.train()
         train_Scorer = Scorer(config)
         Temporal_Losser = Losser()
         Single_Losser = Losser()
+        scheduler.step()
         for i, (file_name, image_list, mask_list) in tqdm(enumerate(train_loader)):
             pn_frame = image_list[:,1:,:,:,:]
             frame = image_list[:,:1,:,:,:]
@@ -163,10 +165,10 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Temporal_Loss: %.4f, Single_Loss: %.4f' %(epoch+1, f1, iou, Valid_Temporal_Losser.mean(), Valid_Single_Losser.mean()))
             if not os.path.isdir(os.path.join(config.save_model_path, now_time + model_name +str(continue_num))):
                 os.makedirs(os.path.join(config.save_model_path, now_time + model_name+str(continue_num)))
-            if f1 >= best_score or epoch % 5 == 0:
-                best_score = f1
+            if iou >= best_score or (epoch+1) % 5 == 0:
+                best_score = iou
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name+str(continue_num))
-                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(f1,4))+".pt")
+                net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(best_score,4))+".pt")
                 logging.info("Model save in "+ net_save_path)
                 best_net = net.state_dict()
                 torch.save(best_net,net_save_path)

@@ -28,10 +28,21 @@ from network.PraNet import PraNet
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module
 from train_src.train_code import train_single, train_continuous, train_temporal
 from train_src.dataloader import get_loader, get_continuous_loader
+import random
 ## loss
-from train_src.loss_func import DiceBCELoss
+from train_src.loss_func import DiceBCELoss, IOUBCELoss
   
 def main(config):
+    seed = 1029
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = False
     # parameter setting
     LR = config.learning_rate
     EPOCH = config.epoch
@@ -103,11 +114,11 @@ def main(config):
     best_score = config.best_score
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
-        criterion_single = nn.BCEWithLogitsLoss(pos_weight = train_weight)
-        criterion_temporal = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+        criterion_single = IOUBCELoss(weight = train_weight)
+        criterion_temporal = IOUBCELoss(weight = train_weight)
         logging.info("train weight = "+str(train_weight))
-        logging.info("criterion_single = nn.BCEWithLogitsLoss()")
-        logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
+        logging.info("criterion_single = IOUBCELoss(weight = train_weight)")
+        logging.info("criterion_temporal = IOUBCELoss(weight = train_weight)")
     elif config.loss_func == 1:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = DiceBCELoss(weight = train_weight)
@@ -116,6 +127,7 @@ def main(config):
         logging.info("criterion_single = DiceBCELoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[2,5,8], gamma=0.1)
     if config.continuous == 0:
         logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
@@ -133,7 +145,7 @@ def main(config):
                                 mode = 'test',
                                 augmentation_prob = 0.,
                                 shffule_yn = False)
-        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, now_time)
+        train_single(config, logging, net, model_name, threshold, best_score, criterion_single, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, now_time)
     elif config.continuous == 1:
         logging.info("Continuous image version")
         train_loader, continue_num = get_continuous_loader(image_path = config.train_data_path, 
@@ -156,9 +168,9 @@ def main(config):
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
         if config.which_model != -1:
-            train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+            train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
         else:
-            train_temporal(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+            train_temporal(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
 
 

@@ -32,11 +32,11 @@ class Two_Level_Res_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        self.down =  nn.Conv3d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
         self.Segmentation_Module = Single_Res_Unet(num_classes)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
-        down = self.down(temporal_mask)
+        down = self.down(temporal_mask.unsqueeze(dim = 2)).squeeze(dim = 2)
         predict = self.Segmentation_Module(down)
         return temporal_mask, predict
 class Two_Level_Deeplab(nn.Module):
@@ -51,18 +51,19 @@ class Two_Level_Deeplab(nn.Module):
         down = self.down(temporal_mask)
         predict = self.Segmentation_Module(down)
         return temporal_mask, predict
+
 class Two_Level_Res_Unet_with_backbone(nn.Module):
     def __init__(self, num_classes, Unet_3D_channel = 64, continue_num = 8):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down = nn.Conv2d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
+        self.down =  nn.Conv3d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
         res = models.resnet34(pretrained=True)
         self.feature_extractor = nn.Sequential(*list(res.children())[:-2])
         self.Segmentation_Module = Single_Res_Unet_with_backbone(num_classes)
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         frame_feature = self.feature_extractor(input.squeeze(dim = 1))
-        down = self.down(temporal_mask)
+        down = self.down(temporal_mask.unsqueeze(dim = 2)).squeeze(dim = 2)
         predict = self.Segmentation_Module(frame_feature, down)
         return temporal_mask, predict
