@@ -80,7 +80,7 @@ def main(config):
         model_name = "Two_Level_Nested_Unet"
         print("Model Two_Level_Nested_Unet")
     elif config.which_model == 13:
-        net = UNet_3D_Seg(1)
+        net = UNet_3D_Seg(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "UNet_3D_Seg"
         print("Model UNet_3D_Seg")
     elif config.which_model == 14:
@@ -100,6 +100,15 @@ def main(config):
         )
         model_name = "smp_Unet"
         print("smp.Unet")
+    elif config.which_model == 17:
+        net = smp.DeepLabV3Plus(
+            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+            classes=1,                      # model output channels (number of classes in your dataset)
+        )
+        model_name = "smp_DeepLabV3Plus"
+        print("smp_DeepLabV3Plus")
     elif config.which_model == -1:
         net = _Temporal_Module(1, config.Unet_3D_channel)
         model_name = "_Temporal_Module"
@@ -136,7 +145,7 @@ def main(config):
         logging.info("criterion_single = DiceBCELoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
-    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[2,5,8], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[11], gamma=1)
     if config.continuous == 0:
         logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
@@ -176,10 +185,11 @@ def main(config):
                                 shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        if config.which_model != -1:
+        if config.which_model != 13:
             train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
         else:
             train_temporal(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+
 
 
 
