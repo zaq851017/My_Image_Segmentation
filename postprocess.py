@@ -17,6 +17,7 @@ import argparse
 import time
 from matplotlib import cm as CM
 import copy
+import segmentation_models_pytorch as smp
 from train_src.dataloader import get_loader, get_continuous_loader
 from predict_src.postprocess_src import test_wo_postprocess, test_w_postprocess
 from network.Vgg_FCN8s import Single_vgg_FCN8s
@@ -28,6 +29,16 @@ from network.Unet3D import UNet_3D_Seg
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
 import random
 def main(config):
+    seed = 1029
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = False
     with torch.no_grad():
         frame_continue_num = list(map(int, config.continue_num))
         if config.continuous == 0:
@@ -83,9 +94,20 @@ def main(config):
             net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
             model_name = "Two_Level_Res_Unet_with_backbone"
             print("Two_Level_Res_Unet_with_backbone")
+        elif config.which_model == 16:
+            net = smp.Unet(
+                encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+                encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+                in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+                classes=1,                      # model output channels (number of classes in your dataset)
+            )
+            model_name = "smp_Unet"
+            print("smp.Unet")
         elif config.which_model == 0:
             print("No assign which model!")
-        net.load_state_dict(torch.load(config.model_path))
+        if config.model_path != "":
+            net.load_state_dict(torch.load(config.model_path))
+            print("pretrain model loaded!")
         net = net.cuda()
         if config.w_postprocess == 0 :
             test_wo_postprocess(config, test_loader, net)

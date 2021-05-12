@@ -32,8 +32,13 @@ class Two_Level_Res_Unet(nn.Module):
         super().__init__()
         warnings.filterwarnings('ignore')
         self.Temporal_Module = _Temporal_Module(num_classes, Unet_3D_channel)
-        self.down =  nn.Conv3d(in_channels = continue_num, out_channels = 3, kernel_size=3, padding = 1)
-        self.Segmentation_Module = Single_Res_Unet(num_classes)
+        self.down =  nn.Conv3d(in_channels = continue_num, out_channels = 1, kernel_size=3, padding = 1)
+        self.Segmentation_Module = smp.Unet(
+            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+            in_channels=1,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+            classes=1,                      # model output channels (number of classes in your dataset)
+        )
     def forward(self, input, other_frame):
         temporal_mask = self.Temporal_Module(input, other_frame).squeeze(dim = 1)
         down = self.down(temporal_mask.unsqueeze(dim = 2)).squeeze(dim = 2)

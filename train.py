@@ -91,6 +91,15 @@ def main(config):
         net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
         model_name = "Two_Level_Res_Unet_with_backbone"
         print("Two_Level_Res_Unet_with_backbone")
+    elif config.which_model == 16:
+        net = smp.Unet(
+            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+            classes=1,                      # model output channels (number of classes in your dataset)
+        )
+        model_name = "smp_Unet"
+        print("smp.Unet")
     elif config.which_model == -1:
         net = _Temporal_Module(1, config.Unet_3D_channel)
         model_name = "_Temporal_Module"

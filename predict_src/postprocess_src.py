@@ -150,7 +150,7 @@ def test_wo_postprocess(config, test_loader, net):
         os.makedirs(config.output_path)
     with torch.no_grad():
         tStart = time.time()
-        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
@@ -227,7 +227,7 @@ def test_w_postprocess(config, test_loader, net):
         end = -1
         last_film_name = ""
         bound_list = []
-        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
@@ -269,7 +269,7 @@ def test_w_postprocess(config, test_loader, net):
         middle_list = Cal_mask_center(mask_img)
         mean_list, global_mean_list = Cal_Local_Global_mean(middle_list, interval_num = 5)
         final_mask_exist = Final_postprocess(middle_list, mean_list, global_mean_list)
-        for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
+        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
