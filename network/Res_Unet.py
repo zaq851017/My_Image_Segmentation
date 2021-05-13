@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 from torchvision import models
 from torchvision.models.vgg import VGG
 from network.Unet3D import UNet_3D
+from network.Unet import UNetSmall
 import warnings
 class _DecoderBlock(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels):
@@ -54,9 +55,10 @@ class Attention_block(nn.Module):
 
         return x*psi
 class Single_Res_Unet(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, feature_extractor = False):
         super(Single_Res_Unet, self).__init__()
         warnings.filterwarnings('ignore')
+        self.f = feature_extractor
         res = models.resnet34(pretrained=True)
         channel_num = 512
         res_feature = nn.Sequential(*list(res.children())[:-1])
@@ -82,9 +84,12 @@ class Single_Res_Unet(nn.Module):
         dec3 = self.dec3(torch.cat([dec4, F.upsample(pool3, dec4.size()[2:], mode='bilinear')], 1))
         dec2 = self.dec2(torch.cat([dec3, F.upsample(pool2, dec3.size()[2:], mode='bilinear')], 1))
         dec1 = self.dec1(torch.cat([dec2, F.upsample(pool1, dec2.size()[2:], mode='bilinear')], 1))
-        final = self.final(dec1)
-        predict = F.upsample(final, x.size()[2:], mode='bilinear')
-        return predict
+        if self.f == False:
+            final = self.final(dec1)
+            predict = F.upsample(final, x.size()[2:], mode='bilinear')
+            return predict
+        else:
+            return dec1
 class Single_Res_Unet_with_backbone(nn.Module):
     def __init__(self, num_classes = 1):
         super(Single_Res_Unet_with_backbone, self).__init__()

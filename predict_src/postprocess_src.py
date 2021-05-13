@@ -154,12 +154,16 @@ def test_wo_postprocess(config, test_loader, net):
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
-            elif config.continuous == 1:
+            elif config.continuous == 1 and config.which_model != 18:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
                 temporal_mask = Sigmoid_func(temporal_mask)
+            elif config.continuous == 1 and config.which_model == 18:
+                pn_frame = image[:,1:,:,:,:]
+                frame = image[:,:1,:,:,:]
+                output = net(frame, pn_frame)
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]

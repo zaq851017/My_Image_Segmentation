@@ -41,7 +41,6 @@ class CLSTMCell(nn.Module):
         combined = torch.cat((x, h), dim=1)
         A = self.conv(combined)
 
-        # NOTE: A? = xz * Wx? + hz-1 * Wh? + b? where * is convolution
         (Ai, Af, Ao, Ag) = torch.split(A,
                                        A.size()[1] // self.num_features,
                                        dim=1)
@@ -124,7 +123,6 @@ class CLSTM(nn.Module):
                                                    self.hidden_channels[layer],
                                                    (height, width))
                     internal_state.append((h, c))
-
                 # do forward
                 name = 'cell{}'.format(layer)
                 (h, c) = internal_state[layer]
@@ -132,7 +130,6 @@ class CLSTM(nn.Module):
                 input, c = getattr(self, name)(
                     input, h, c)  # forward propogation call
                 internal_state[layer] = (input, c)
-
             outputs.append(input)
 
         #for i in range(len(outputs)):
@@ -143,7 +140,7 @@ class CLSTM(nn.Module):
 class BDCLSTM(nn.Module):
     # Constructor
     def __init__(self, input_channels=64, hidden_channels=[64],
-                 kernel_size=5, bias=True, num_classes=2):
+                 kernel_size=5, bias=True, num_classes=1):
 
         super(BDCLSTM, self).__init__()
         self.forward_net = CLSTM(
@@ -157,23 +154,23 @@ class BDCLSTM(nn.Module):
     # Forward propogation
     # x --> BatchSize x NumChannels x Height x Width
     #       BatchSize x 64 x 240 x 240
-    def forward(self, x1, x2, x3):
-        x1 = torch.unsqueeze(x1, dim=1)
-        x2 = torch.unsqueeze(x2, dim=1)
-        x3 = torch.unsqueeze(x3, dim=1)
-
-        xforward = torch.cat((x1, x2), dim=1)
-        xreverse = torch.cat((x3, x2), dim=1)
-
+    def forward(self, previous_list, current_frame, next_list):
+        previous_frame = torch.tensor([]).cuda()
+        for i in range(len(previous_list)):
+            previous_frame = torch.cat((previous_frame, previous_list[i].unsqueeze(dim = 1)), dim = 1)
+        xforward = torch.cat( (previous_frame, current_frame.unsqueeze(dim = 1)), dim = 1)
+        next_frame = torch.tensor([]).cuda()
+        for i in range(len(next_list)):
+            next_frame = torch.cat((next_frame, next_list[i].unsqueeze(dim = 1)), dim = 1)
+        xreverse = torch.cat( (current_frame.unsqueeze(dim = 1),  next_frame), dim = 1)
+        # x1 = torch.unsqueeze(x1, dim=1)
+        # x2 = torch.unsqueeze(x2, dim=1)
+        # x3 = torch.unsqueeze(x3, dim=1)
+        # xforward = torch.cat((x1, x2), dim=1)
+        # xreverse = torch.cat((x3, x2), dim=1)
         yforward = self.forward_net(xforward)
         yreverse = self.reverse_net(xreverse)
-
         # assumes y is BatchSize x NumClasses x 240 x 240
-        # print(yforward[-1].type)
         ycat = torch.cat((yforward[-1], yreverse[-1]), dim=1)
-        # print(ycat.size())
         y = self.conv(ycat)
-        # print(y.type)
-        y = self.soft(y)
-        # print(y.type)
         return y

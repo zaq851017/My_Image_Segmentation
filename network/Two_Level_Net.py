@@ -6,7 +6,9 @@ from network.Unet3D import UNet_3D
 from network.Res_Unet import Single_Res_Unet_with_backbone, Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
+from network.CLSTM import BDCLSTM
 from torchvision import models
+from network.Unet import UNetSmall
 import segmentation_models_pytorch as smp
 class _Temporal_Module(nn.Module):
     def __init__(self, num_classes, Unet_3D_channel = 64):
@@ -72,3 +74,33 @@ class Two_Level_Res_Unet_with_backbone(nn.Module):
         down = self.down(temporal_mask.unsqueeze(dim = 2)).squeeze(dim = 2)
         predict = self.Segmentation_Module(frame_feature, down)
         return temporal_mask, predict
+class Unet_LSTM(nn.Module):
+    def __init__(self, num_classes, continue_num = 8):
+        super().__init__()
+        #self.unet1 = UNetSmall(num_channels = 3, num_classes = 1)
+        self.unet1 = smp.Unet(
+            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+            classes=1,                      # model output channels (number of classes in your dataset)
+        )
+        self.unet1.segmentation_head = nn.Sequential(*[self.unet1.segmentation_head[i] for i in range(0)])
+        self.len = continue_num
+        self.lstm = BDCLSTM(input_channels = 16, hidden_channels=[16])
+    def forward(self, input, other_frame):
+        predict_pre = []
+        predict_next = []
+        for i in range(int(self.len / 2)):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_pre.append(temp)
+        for i in range(int(self.len / 2), self.len):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_next.append(temp)
+        predict_now = self.unet1(input.squeeze(dim = 1))
+        final_predict = self.lstm(predict_pre, predict_now, predict_next)
+        # predict_pre = self.unet1(other_frame[:,0:1,:,:,:].squeeze(dim = 1))
+        # predict_next = self.unet1(other_frame[:,1:2,:,:,:].squeeze(dim = 1))
+        # predict_now = self.unet1(input.squeeze(dim = 1))
+        # final_predict = self.lstm(predict_pre, predict_now, predict_next)
+        return final_predict
+        

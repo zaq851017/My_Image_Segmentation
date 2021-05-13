@@ -26,7 +26,7 @@ from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, Unet_LSTM
 import random
 def main(config):
     seed = 1029
@@ -103,6 +103,10 @@ def main(config):
             )
             model_name = "smp_Unet"
             print("smp.Unet")
+        elif config.which_model == 18:
+            net = Unet_LSTM(1, len(frame_continue_num))
+            model_name = "Unet_LSTM"
+            print("Unet_LSTM")
         elif config.which_model == 0:
             print("No assign which model!")
         if config.model_path != "":

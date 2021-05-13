@@ -25,8 +25,8 @@ from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
 from network.PraNet import PraNet
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module
-from train_src.train_code import train_single, train_continuous, train_temporal
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module, Unet_LSTM
+from train_src.train_code import train_single, train_continuous, train_temporal, train_BDCLSTM
 from train_src.dataloader import get_loader, get_continuous_loader
 import random
 ## loss
@@ -109,6 +109,10 @@ def main(config):
         )
         model_name = "smp_DeepLabV3Plus"
         print("smp_DeepLabV3Plus")
+    elif config.which_model == 18:
+        net = Unet_LSTM(1, len(frame_continue_num))
+        model_name = "Unet_LSTM"
+        print("Unet_LSTM")
     elif config.which_model == -1:
         net = _Temporal_Module(1, config.Unet_3D_channel)
         model_name = "_Temporal_Module"
@@ -130,6 +134,8 @@ def main(config):
     net = net.cuda()
     threshold = config.threshold
     best_score = config.best_score
+    OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[2, 10], gamma = 0.1)
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = IOUBCELoss(weight = train_weight)
@@ -144,8 +150,6 @@ def main(config):
         logging.info("train weight = "+str(train_weight))
         logging.info("criterion_single = DiceBCELoss()")
         logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
-    OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
-    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[11], gamma=1)
     if config.continuous == 0:
         logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
@@ -185,10 +189,10 @@ def main(config):
                                 shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        if config.which_model != 13:
+        if config.which_model != 18:
             train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
         else:
-            train_temporal(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+            train_BDCLSTM(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
 
 
