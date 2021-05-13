@@ -172,7 +172,6 @@ def train_BDCLSTM(config, logging, net, model_name, threshold, best_score, crite
             if i % 100 == 1:
                 train_Scorer.add(SR, GT)
                 logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f, Single_Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), Single_Losser.mean()))
-        scheduler.step()
         with torch.no_grad():
             net.eval()
             valid_Scorer = Scorer(config)
@@ -193,6 +192,7 @@ def train_BDCLSTM(config, logging, net, model_name, threshold, best_score, crite
             f1 = valid_Scorer.f1()
             iou = valid_Scorer.iou()
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Single_Loss: %.4f' %(epoch+1, f1, iou, Valid_Single_Losser.mean()))
+            scheduler.step(iou)
             if not os.path.isdir(os.path.join(config.save_model_path, now_time + model_name +str(continue_num))):
                 os.makedirs(os.path.join(config.save_model_path, now_time + model_name+str(continue_num)))
             if iou >= best_score or (epoch+1) % 5 == 0:
@@ -231,7 +231,6 @@ def train_temporal(config, logging, net, model_name, threshold, best_score, crit
             if i % 100 == 1:
                 train_Scorer.add(SR, GT)
                 logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f, Single_Loss: %.4f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), Single_Losser.mean()))
-        scheduler.step()
         with torch.no_grad():
             net.eval()
             valid_Scorer = Scorer(config)
@@ -252,3 +251,4 @@ def train_temporal(config, logging, net, model_name, threshold, best_score, crit
             f1 = valid_Scorer.f1()
             iou = valid_Scorer.iou()
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Single_Loss: %.4f' %(epoch+1, f1, iou, Valid_Single_Losser.mean()))
+        scheduler.step(iou)
