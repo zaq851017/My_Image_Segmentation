@@ -135,7 +135,9 @@ def main(config):
     threshold = config.threshold
     best_score = config.best_score
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='max', factor=0.1, patience = 3)
+    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='max', factor=0.1, patience = 3)
+    #scheduler = optim.lr_scheduler.StepLR(OPTIMIZER, step_size = 10, gamma = 0.3)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[5, 20], gamma = 0.1)
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = IOUBCELoss(weight = train_weight)

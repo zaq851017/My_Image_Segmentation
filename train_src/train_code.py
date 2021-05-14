@@ -191,8 +191,8 @@ def train_BDCLSTM(config, logging, net, model_name, threshold, best_score, crite
                 Valid_Single_Losser.add(loss.item())
             f1 = valid_Scorer.f1()
             iou = valid_Scorer.iou()
-            logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Single_Loss: %.4f' %(epoch+1, f1, iou, Valid_Single_Losser.mean()))
-            scheduler.step(iou)
+            logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Single_Loss: %.4f, Learn_Rate: %.10f' %(epoch+1, f1, iou, Valid_Single_Losser.mean(), (OPTIMIZER.state_dict()['param_groups'][0]['lr'])))
+            scheduler.step()
             if not os.path.isdir(os.path.join(config.save_model_path, now_time + model_name +str(continue_num))):
                 os.makedirs(os.path.join(config.save_model_path, now_time + model_name+str(continue_num)))
             if iou >= best_score or (epoch+1) % 5 == 0:
