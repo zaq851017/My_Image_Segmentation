@@ -25,7 +25,16 @@ def LISTDIR(path):
     return out
 def frame2video(path):
     video_path = (path[:-6])
-    videoWriter = cv2.VideoWriter(os.path.join(video_path,"video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (832, 352))
+    videoWriter = cv2.VideoWriter(os.path.join(video_path,"merge_video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (832, 352))
+    for frame_files in  LISTDIR(path):
+        if frame_files[-3:] == "jpg":
+            full_path = os.path.join(path, frame_files)
+            frame = cv2.imread(full_path)
+            videoWriter.write(frame)
+    videoWriter.release()
+def film_frame2video(path):
+    video_path = (path[:-7])
+    videoWriter = cv2.VideoWriter(os.path.join(video_path,"film_video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (416, 352))
     for frame_files in  LISTDIR(path):
         if frame_files[-3:] == "jpg":
             full_path = os.path.join(path, frame_files)
@@ -187,9 +196,9 @@ def test_wo_postprocess(config, test_loader, net):
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            heatmap = np.uint8(255 * SR)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-            heat_img = heatmap*0.9+origin_crop_image
+            heatmap = np.uint8(110 * SR)
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
+            heat_img = heatmap*0.6+origin_crop_image
             merge_img = np.hstack([origin_crop_image, heat_img])
             cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
             imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
@@ -203,16 +212,16 @@ def test_wo_postprocess(config, test_loader, net):
             if os.path.isdir(full_path):
                 for num_files in tqdm(LISTDIR(full_path)):
                     full_path_2 = os.path.join(full_path, num_files+"/merge")
+                    full_path_3 = os.path.join(full_path, num_files+"/forfilm")
                     height_path = os.path.join(o_full_path, num_files, "height.txt")
                     s_height_path = os.path.join(full_path, num_files)
                     os.system("cp "+height_path+" "+s_height_path)
                     print("cp "+height_path+" "+s_height_path)
                     frame2video(full_path_2)
+                    film_frame2video(full_path_3)
                     if config.keep_image == 0:
                         full_path_3 = os.path.join(full_path, num_files+"/original")
-                        full_path_4 = os.path.join(full_path, num_files+"/forfilm")
                         os.system("rm -r "+full_path_3)
-                        os.system("rm -r "+full_path_4)
 def test_w_postprocess(config, test_loader, net):
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
@@ -287,9 +296,9 @@ def test_w_postprocess(config, test_loader, net):
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
             SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
-            heatmap = np.uint8(255 * SR)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-            heat_img = heatmap*0.9+origin_crop_image
+            heatmap = np.uint8(110 * SR)
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
+            heat_img = heatmap*0.6+origin_crop_image
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
