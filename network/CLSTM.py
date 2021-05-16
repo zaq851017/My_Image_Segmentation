@@ -38,6 +38,8 @@ class CLSTMCell(nn.Module):
     def forward(self, x, h, c):
         # print('x: ', x.type)
         # print('h: ', h.type)
+        if len(x.shape) == 3: # batch, H, W 
+            x = x.unsqueeze(dim = 1)
         combined = torch.cat((x, h), dim=1)
         A = self.conv(combined)
 
