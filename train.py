@@ -15,6 +15,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import argparse
 from datetime import datetime
+import warnings
 import logging
 ##net work
 import segmentation_models_pytorch as smp
@@ -26,13 +27,14 @@ from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
 from network.PraNet import PraNet
 from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module, Unet_LSTM
-from train_src.train_code import train_single, train_continuous, train_temporal, train_BDCLSTM
+from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
 import random
 ## loss
 from train_src.loss_func import DiceBCELoss, IOUBCELoss
   
 def main(config):
+    warnings.filterwarnings('ignore')
     seed = 1029
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -137,7 +139,7 @@ def main(config):
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     #scheduler = optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='max', factor=0.1, patience = 3)
     #scheduler = optim.lr_scheduler.StepLR(OPTIMIZER, step_size = 10, gamma = 0.3)
-    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[5, 20], gamma = 0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[5, 15], gamma = 0.1)
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = IOUBCELoss(weight = train_weight)
@@ -191,13 +193,7 @@ def main(config):
                                 shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        # if config.which_model != 18:
         train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
-        # else:
-            # train_BDCLSTM(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
-
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
