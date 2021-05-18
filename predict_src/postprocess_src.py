@@ -151,13 +151,15 @@ def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num = 5
                         else:
                             final_mask_exist.append(1)
     return final_mask_exist
-def test_wo_postprocess(config, test_loader, net):
+def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist = [], postprocess_continue_list = []):
+    if postprocess == False:
+        print("No postprocessing!!")
+    else:
+        print("Has postprocessing!!")
     Sigmoid_func = nn.Sigmoid()
     threshold = config.threshold
-    net.eval()
-    if not os.path.isdir(config.output_path):
-        os.makedirs(config.output_path)
     with torch.no_grad():
+        net.eval()
         tStart = time.time()
         for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
             if config.continuous == 0:
@@ -185,13 +187,19 @@ def test_wo_postprocess(config, test_loader, net):
                     os.makedirs(write_path+"/temporal_mask")
                 for j in range(temporal_mask.shape[1]):
                     temporal_res = temporal_mask[:,j:j+1,:,:].squeeze(dim = 1)
-                    t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
+                    t_SR = (temporal_res).squeeze().cpu().data.numpy()
+                    #t_SR  = np.uint8(255 * t_SR)
+                    #t_SR = cv2.applyColorMap(t_SR, cv2.COLORMAP_JET)
+                    #import ipdb;ipdb.set_trace()
+                    #t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
                     t_img_name = file_name[0].split("/")[-1].split(".")[0]+"_"+str(j)+".jpg"
                     cv2.imwrite(os.path.join(write_path+"/temporal_mask", t_img_name), t_SR*255)
             output = Sigmoid_func(output)
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            if postprocess == True:
+                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
             heatmap = np.uint8(110 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
             heat_img = heatmap*0.6+origin_crop_image
@@ -202,40 +210,39 @@ def test_wo_postprocess(config, test_loader, net):
             cv2.imwrite(os.path.join(write_path+"/vol_mask", img_name), SR*255)
         tEnd = time.time()
         print("Cost time(seconds)= "+str(tEnd-tStart))
-        for dir_files in (LISTDIR(config.output_path)):
-            full_path = os.path.join(config.output_path, dir_files)
-            o_full_path = os.path.join(config.input_path, dir_files)
-            if os.path.isdir(full_path):
-                for num_files in tqdm(LISTDIR(full_path)):
-                    full_path_2 = os.path.join(full_path, num_files+"/merge")
-                    full_path_3 = os.path.join(full_path, num_files+"/forfilm")
-                    height_path = os.path.join(o_full_path, num_files, "height.txt")
-                    s_height_path = os.path.join(full_path, num_files)
-                    os.system("cp "+height_path+" "+s_height_path)
-                    print("cp "+height_path+" "+s_height_path)
-                    frame2video(full_path_2)
-                    film_frame2video(full_path_3)
-                    if config.keep_image == 0:
-                        full_path_3 = os.path.join(full_path, num_files+"/original")
-                        os.system("rm -r "+full_path_3)
+def MERGE_VIDEO(config):
+    for dir_files in (LISTDIR(config.output_path)):
+        full_path = os.path.join(config.output_path, dir_files)
+        o_full_path = os.path.join(config.input_path, dir_files)
+        if os.path.isdir(full_path):
+            for num_files in tqdm(LISTDIR(full_path)):
+                full_path_2 = os.path.join(full_path, num_files+"/merge")
+                full_path_3 = os.path.join(full_path, num_files+"/forfilm")
+                height_path = os.path.join(o_full_path, num_files, "height.txt")
+                s_height_path = os.path.join(full_path, num_files)
+                os.system("cp "+height_path+" "+s_height_path)
+                print("cp "+height_path+" "+s_height_path)
+                frame2video(full_path_2)
+                film_frame2video(full_path_3)
+                if config.keep_image == 0:
+                    full_path_3 = os.path.join(full_path, num_files+"/original")
+                    os.system("rm -r "+full_path_3)
+def test_wo_postprocess(config, test_loader, net):
+    if not os.path.isdir(config.output_path):
+        os.makedirs(config.output_path)
+    OUTPUT_IMG(config, test_loader, net, False)
+    MERGE_VIDEO(config)
 def test_w_postprocess(config, test_loader, net):
-    Sigmoid_func = nn.Sigmoid()
-    threshold = config.threshold
-    distance = 75
     net.eval()
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)
     with torch.no_grad():
-        tStart = time.time()
-        mask_img = {}
-        temp_mask_exist = [1] * len(test_loader)
-        temp_continue_list = [1] * len(test_loader)
-        continue_list = []
-        last_signal = 0
-        start = 0
-        end = -1
-        last_film_name = ""
-        bound_list = []
+        distance = 75
+        Sigmoid_func = nn.Sigmoid()
+        threshold = config.threshold
+        temp_mask_exist, temp_continue_list = [1] * len(test_loader), [1] * len(test_loader)
+        mask_img, continue_list, bound_list = {}, [], []
+        last_signal, start, end, last_film_name = 0, 0, -1, ""
         for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
             if config.continuous == 0:
                 image = image.cuda()
@@ -246,8 +253,6 @@ def test_w_postprocess(config, test_loader, net):
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
             output = Sigmoid_func(output)
-            crop_image = crop_image.squeeze().data.numpy()
-            origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
             SR = postprocess_img(SR, temp_mask_exist[i], temp_continue_list[1])
             if np.sum(SR != 0) == 0:
@@ -262,70 +267,11 @@ def test_w_postprocess(config, test_loader, net):
                 mask_img[dict_path].append(SR)
             else:
                 mask_img[dict_path].append(SR)
-            if config.draw_temporal == 1:
-                temp = [config.output_path] + file_name[0].split("/")[2:-2]
-                write_path = "/".join(temp)
-                if not os.path.isdir(write_path+"/temporal_mask"):
-                    os.makedirs(write_path+"/temporal_mask")
-                for j in range(temporal_mask.shape[1]):
-                    temporal_res = temporal_mask[:,j:j+1,:,:].squeeze(dim = 1)
-                    t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
-                    t_img_name = file_name[0].split("/")[-1].split(".")[0]+"_"+str(j)+".jpg"
-                    cv2.imwrite(os.path.join(write_path+"/temporal_mask", t_img_name), t_SR*255)
         bound_list.append(i)
         postprocess_continue_list = copy.deepcopy(continue_list)
         postprocess_continue_list = Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30)
         middle_list = Cal_mask_center(mask_img)
         mean_list, global_mean_list = Cal_Local_Global_mean(middle_list, interval_num = 5)
         final_mask_exist = Final_postprocess(middle_list, mean_list, global_mean_list)
-        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
-            if config.continuous == 0:
-                image = image.cuda()
-                output = net(image)
-            elif config.continuous == 1:
-                pn_frame = image[:,1:,:,:,:]
-                frame = image[:,:1,:,:,:]
-                temporal_mask, output = net(frame, pn_frame)
-                output = output.squeeze(dim = 1)
-            output = Sigmoid_func(output)
-            crop_image = crop_image.squeeze().data.numpy()
-            origin_crop_image = crop_image.copy()
-            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
-            SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
-            heatmap = np.uint8(110 * SR)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
-            heat_img = heatmap*0.6+origin_crop_image
-            temp = [config.output_path] + file_name[0].split("/")[2:-2]
-            write_path = "/".join(temp)
-            img_name = file_name[0].split("/")[-1]
-            if not os.path.isdir(write_path+"/original"):
-                os.makedirs(write_path+"/original")
-            if not os.path.isdir(write_path+"/forfilm"):
-                os.makedirs(write_path+"/forfilm")
-            if not os.path.isdir(write_path+"/merge"):
-                os.makedirs(write_path+"/merge")
-            if not os.path.isdir(write_path+"/vol_mask"):
-                os.makedirs(write_path+"/vol_mask")
-            merge_img = np.hstack([origin_crop_image, heat_img])
-            cv2.imwrite(os.path.join(write_path+"/merge", img_name), merge_img)
-            imageio.imwrite(os.path.join(write_path+"/original", img_name), origin_crop_image)
-            cv2.imwrite(os.path.join(write_path+"/forfilm", img_name), heat_img)
-            cv2.imwrite(os.path.join(write_path+"/vol_mask", img_name), SR*255)
-        tEnd = time.time()
-        print("Cost time(seconds)= "+str(tEnd-tStart))
-        for dir_files in (LISTDIR(config.output_path)):
-            full_path = os.path.join(config.output_path, dir_files)
-            o_full_path = os.path.join(config.input_path, dir_files)
-            if os.path.isdir(full_path):
-                for num_files in tqdm(LISTDIR(full_path)):
-                    full_path_2 = os.path.join(full_path, num_files+"/merge")
-                    height_path = os.path.join(o_full_path, num_files, "height.txt")
-                    s_height_path = os.path.join(full_path, num_files)
-                    os.system("cp "+height_path+" "+s_height_path)
-                    print("cp "+height_path+" "+s_height_path)
-                    frame2video(full_path_2)
-                    if config.keep_image == 0:
-                        full_path_3 = os.path.join(full_path, num_files+"/original")
-                        full_path_4 = os.path.join(full_path, num_files+"/forfilm")
-                        os.system("rm -r "+full_path_3)
-                        os.system("rm -r "+full_path_4)
+        OUTPUT_IMG(config, test_loader, net, True, final_mask_exist, postprocess_continue_list)
+        MERGE_VIDEO(config)
