@@ -12,15 +12,10 @@ from sklearn.metrics import precision_recall_curve
 import torch.nn as nn
 from sklearn.metrics import f1_score
 from sklearn.metrics import fbeta_score
-from network.Vgg_FCN8s import Single_vgg_FCN8s
-from network.Vgg_Unet import Single_vgg_Unet
-from network.Res_Unet import Single_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet
-from network.DeepLab import DeepLab
-from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
+from all_model import WHICH_MODEL
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
+import random
 def LISTDIR(path):
     out = os.listdir(path)
     out.sort()
@@ -39,91 +34,65 @@ def cal_f1(temp_GT, temp_predict):
     recall = tp / (tp+fn)
     return 2*precision*recall/(precision+recall)
 def read_predict_GT_mask(config):
-    frame_continue_num = list(map(int, config.continue_num))
-    if config.which_model == 1:
-        net = Single_vgg_FCN8s(1)
-        model_name = "Single_vgg__FCN8s"
-        print("Model Single_vgg__FCN8s")
-    elif config.which_model == 2:
-        net = Single_vgg_Unet(1)
-        model_name = "Single_vgg_Unet"
-        print("Model Single_vgg_Unet")
-    elif config.which_model == 3:
-        net = Single_Res_Unet(1)
-        model_name = "Single_Res_Unet"
-        print("Model Single_Res_Unet")
-    elif config.which_model == 4:
-        net = Single_Nested_Unet(1)
-        model_name = "Single_Nested_Unet"
-        print("Model Single_Nested_Unet")
-    elif config.which_model == 5:
-        net = DeepLab()
-        model_name = "Single_DeepLab"
-        print("Model Single_DeepLab")
-    elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet"
-        print("Model Two_Level_Res_Unet")
-    elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Nested_Unet"
-        print("Model Two_Level_Nested_Unet")
-    elif config.which_model == 13:
-        net = UNet_3D_Seg(1)
-        model_name = "UNet_3D_Seg"
-        print("Model UNet_3D_Seg")
-    elif config.which_model == 14:
-        net = Two_Level_Deeplab(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Deeplab"
-        print("Two_Level_Deeplab")
-    elif config.which_model == 15:
-        net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet_with_backbone"
-        print("Two_Level_Res_Unet_with_backbone")
-    elif config.which_model == 0:
-        print("No assign which model!")
-    net.load_state_dict(torch.load(config.model_path))
-    net = net.cuda()
-    net.eval()
-    Sigmoid_func = nn.Sigmoid()
-    temp_output = np.zeros((1, 368, 424))
-    temp_GT = np.zeros((1, 368, 424))
-    if config.continuous == 0:
-        test_loader = get_loader(image_path = config.GT_path,
-                                batch_size = 1,
-                                mode = 'test',
-                                augmentation_prob = 0.,
-                                shffule_yn = False)
-    elif config.continuous == 1:
-        test_loader = get_continuous_loader(image_path = config.GT_path,
-                                batch_size = 1,
-                                mode = 'test',
-                                augmentation_prob = 0.,
-                                shffule_yn = False,
-                                continue_num = frame_continue_num)
-    for i, (crop_image ,file_name, image) in tqdm(enumerate(test_loader)):
-            if config.continuous == 0:
-                image = image.cuda()
-                output = net(image)
-            elif config.continuous == 1:
-                pn_frame = image[:,1:,:,:,:]
-                frame = image[:,:1,:,:,:]
-                temporal_mask, output = net(frame, pn_frame)
-                temporal_mask = Sigmoid_func(temporal_mask)
-            output = output.squeeze(dim = 1)
-            output = Sigmoid_func(output).cpu().detach().numpy()
-            mask_path = os.path.join("/".join(file_name[0].split("/")[0:-2]),"mask",file_name[0].split("/")[-1].replace(".jpg", "_out.jpg"))
-            GT = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-            _, GT = cv2.threshold(GT, 127, 1, cv2.THRESH_BINARY)
-            GT = np.expand_dims(GT, axis = 0)
-            temp_output = np.concatenate((temp_output, output), axis = 0)
-            temp_GT = np.concatenate((temp_GT, GT), axis = 0)
-    file = open(model_name +"_"+config.model_path.split("/")[-1]+'_predict.pickle')
-    pickle.dump(temp_output[1:,:,:].flatten(), file)
-    file.close()
-    file = open('valid_GT.pickle', 'wb')
-    pickle.dump(temp_GT[1:,:,:].flatten(), file)
-    file.close()
+    with torch.no_grad():
+        frame_continue_num = list(map(int, config.continue_num))
+        net, model_name = WHICH_MODEL(config, frame_continue_num)
+        net = net.cuda()
+        net.eval()
+        Sigmoid_func = nn.Sigmoid()
+        temp_output_0 = np.zeros((1, 352, 416))
+        temp_GT_0 = np.zeros((1, 352, 416))
+        temp_output_1 = np.zeros((1, 352, 416))
+        temp_GT_1 = np.zeros((1, 352, 416))
+        temp_output_2 = np.zeros((1, 352, 416))
+        temp_GT_2 = np.zeros((1, 352, 416))
+        if config.continuous == 0:
+            print("No continuous")
+            test_loader = get_loader(image_path = config.GT_path,
+                                    batch_size = 1,
+                                    mode = 'test',
+                                    augmentation_prob = 0.,
+                                    shffule_yn = False)
+        elif config.continuous == 1:
+            print("With continuous")
+            test_loader, continue_num = get_continuous_loader(image_path = config.GT_path,
+                                    batch_size = 1,
+                                    mode = 'test',
+                                    augmentation_prob = 0.,
+                                    shffule_yn = False,
+                                    continue_num = frame_continue_num)
+        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
+                if config.continuous == 0:
+                    image = image.cuda()
+                    output = net(image)
+                elif config.continuous == 1:
+                    pn_frame = image[:,1:,:,:,:]
+                    frame = image[:,:1,:,:,:]
+                    temporal_mask, output = net(frame, pn_frame)
+                    temporal_mask = Sigmoid_func(temporal_mask)
+                output = output.squeeze(dim = 1)
+                output = Sigmoid_func(output).cpu().detach().numpy()
+                mask_path = os.path.join("/".join(file_name[0].split("/")[0:-2]),"mask",file_name[0].split("/")[-1].replace(".jpg", "_out.jpg"))
+                GT = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                _, GT = cv2.threshold(GT, 127, 1, cv2.THRESH_BINARY)
+                GT = np.expand_dims(GT, axis = 0)
+                if i<= 500:
+                    temp_output_0 = np.concatenate((temp_output_0, output), axis = 0)
+                    temp_GT_0 = np.concatenate((temp_GT_0, GT), axis = 0)
+                elif i<=1000:
+                    temp_output_1 = np.concatenate((temp_output_1, output), axis = 0)
+                    temp_GT_1 = np.concatenate((temp_GT_1, GT), axis = 0)
+                elif i<=1500:
+                    temp_output_2 = np.concatenate((temp_output_2, output), axis = 0)
+                    temp_GT_2 = np.concatenate((temp_GT_2, GT), axis = 0)
+        temp_output = np.concatenate((temp_output_0[1:,:,:], temp_output_1[1:,:,:], temp_output_2[1:,:,:]), axis = 0)
+        temp_GT = np.concatenate((temp_GT_0[1:,:,:], temp_GT_1[1:,:,:], temp_GT_2[1:,:,:]), axis = 0)
+        file = open(model_name +"_"+config.model_path.split("/")[-1][:-3]+'_predict.pickle', 'wb')
+        pickle.dump(temp_output[:,:,:].flatten(), file)
+        file.close()
+        file = open('valid_GT.pickle', 'wb')
+        pickle.dump(temp_GT[:,:,:].flatten(), file)
+        file.close()
 def plot_ROC_curve(config):
     with open('valid_GT.pickle', 'rb') as file:
         with open(config.feature_model_path, 'rb') as file2:
@@ -223,6 +192,16 @@ def plot_F2_curve(config):
             plt.savefig('F2-score.png')
     print("F2 curve finished!")
 if __name__ == "__main__":
+    seed = 1029
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = False
     parser = argparse.ArgumentParser()
     parser.add_argument('--GT_path', type=str, default="")
     parser.add_argument('--model_path', type=str, default="")
@@ -232,8 +211,8 @@ if __name__ == "__main__":
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--feature_model_path', type=str, default="")
     config = parser.parse_args()
-    #read_predict_GT_mask(config)
-    #plot_ROC_curve(config)
-    #plot_PR_curve(config)2
-    #plot_F1_curve(config)
-    #plot_IOU_curve(config)
+    # read_predict_GT_mask(config)
+    # plot_ROC_curve(config)
+    # plot_PR_curve(config)
+    plot_F1_curve(config)
+    plot_IOU_curve(config)

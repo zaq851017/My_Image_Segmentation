@@ -35,12 +35,11 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
             if random.random() >= random_para:
                 image = image.cuda()
                 mask = mask.cuda()
-                if config.which_model != 4:
-                    output = net(image).squeeze(dim = 1)
-                    loss = criterion(output, mask.float())
-                    output = Sigmoid_func(output)
-                    SR = torch.where(output > threshold, 1, 0).cpu()
-                    GT = mask.cpu()
+                output = net(image).squeeze(dim = 1)
+                loss = criterion(output, mask.float())
+                output = Sigmoid_func(output)
+                SR = torch.where(output > threshold, 1, 0).cpu()
+                GT = mask.cpu()
                 if random.random() >= random_para:
                     OPTIMIZER.zero_grad() 
                     loss.backward()
@@ -57,12 +56,11 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
             for i, (image, mask) in enumerate(tqdm(valid_loader, position=0, leave=True)):
                 image = image.cuda()
                 mask = mask.cuda()
-                if config.which_model != 4:
-                    output = net(image).squeeze(dim = 1)
-                    loss = criterion(output, mask.float())
-                    output = Sigmoid_func(output)
-                    SR = torch.where(output > threshold, 1, 0).cpu()
-                    GT = mask.cpu()
+                output = net(image).squeeze(dim = 1)
+                loss = criterion(output, mask.float())
+                output = Sigmoid_func(output)
+                SR = torch.where(output > threshold, 1, 0).cpu()
+                GT = mask.cpu()
                 valid_Scorer.add(SR, GT)
                 valid_Losser.add(loss.item())
             f1 = valid_Scorer.f1()
@@ -70,7 +68,7 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Loss: %.3f' %(epoch+1, f1, iou, valid_Losser.mean()))
             if not os.path.isdir(config.save_model_path + now_time + model_name):
                 os.makedirs(config.save_model_path + now_time + model_name)
-            if iou >= best_score or (epoch+1) % 5 == 0:
+            if iou >= best_score or (epoch+1) % 5 == 0 or (epoch+1) <= 6:
                 best_score = iou
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
                 net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(best_score,4))+".pt")
@@ -97,7 +95,10 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
             temporal_mask, output = net(frame, pn_frame)
             output = output.squeeze(dim = 1)
             loss = criterion_single(output, mask.float())
-            pn_loss = criterion_temporal(temporal_mask, pn_mask)
+            if config.w_T_LOSS == 1:
+                pn_loss = criterion_temporal(temporal_mask, pn_mask)
+            else:
+                pn_loss = torch.tensor(0).cuda()
             GT = mask.cpu()
             total_loss = loss + pn_loss
             OPTIMIZER.zero_grad() 
@@ -107,7 +108,7 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
             SR = torch.where(output > threshold, 1, 0).cpu()
             Temporal_Losser.add(pn_loss.item())
             Single_Losser.add(loss.item())
-            if i % 1000 == 999:
+            if i % 250 == 0:
                 train_Scorer.add(SR, GT)
                 logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f, Temporal_Loss: %.3f, Single_Loss: %.3f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), Temporal_Losser.mean(), Single_Losser.mean()))
         scheduler.step()
@@ -136,7 +137,7 @@ def train_continuous(config, logging, net, model_name, threshold, best_score, cr
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Temporal_Loss: %.3f, Single_Loss: %.3f' %(epoch+1, f1, iou, Valid_Temporal_Losser.mean(), Valid_Single_Losser.mean()))
             if not os.path.isdir(os.path.join(config.save_model_path, now_time + model_name +str(continue_num))):
                 os.makedirs(os.path.join(config.save_model_path, now_time + model_name+str(continue_num)))
-            if iou >= best_score or (epoch+1) % 5 == 0:
+            if iou >= best_score or (epoch+1) % 5 == 0 or (epoch+1) <= 6:
                 best_score = iou
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name+str(continue_num))
                 net_save_path = os.path.join(net_save_path, "Epoch="+str(epoch+1)+"_Score="+str(round(best_score,4))+".pt")

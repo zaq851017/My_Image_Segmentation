@@ -18,17 +18,9 @@ from datetime import datetime
 import warnings
 import logging
 ##net work
-import segmentation_models_pytorch as smp
-from network.Vgg_FCN8s import Single_vgg_FCN8s
-from network.Vgg_Unet import Single_vgg_Unet
-from network.Res_Unet import Single_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet
-from network.DeepLab import DeepLab
-from network.Unet3D import UNet_3D_Seg
-from network.PraNet import PraNet
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, _Temporal_Module, Unet_LSTM
 from train_src.train_code import train_single, train_continuous
 from train_src.dataloader import get_loader, get_continuous_loader
+from all_model import WHICH_MODEL
 import random
 ## loss
 from train_src.loss_func import DiceBCELoss, IOUBCELoss
@@ -53,77 +45,7 @@ def main(config):
         frame_continue_num = 0
     else:
         frame_continue_num = list(map(int, config.continue_num))
-    if config.which_model == 1:
-        net = Single_vgg_FCN8s(1)
-        model_name = "Single_vgg__FCN8s"
-        print("Model Single_vgg__FCN8s")
-    elif config.which_model == 2:
-        net = Single_vgg_Unet(1)
-        model_name = "Single_vgg_Unet"
-        print("Model Single_vgg_Unet")
-    elif config.which_model == 3:
-        net = Single_Res_Unet(1)
-        model_name = "Single_Res_Unet"
-        print("Model Single_Res_Unet")
-    elif config.which_model == 4:
-        net = PraNet(1)
-        model_name = "Single_PraNet"
-        print("Model Single_PraNet")
-    elif config.which_model == 5:
-        net = DeepLab()
-        model_name = "Single_DeepLab"
-        print("Model Single_DeepLab")
-    elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet"
-        print("Model Two_Level_Res_Unet")
-    elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Nested_Unet"
-        print("Model Two_Level_Nested_Unet")
-    elif config.which_model == 13:
-        net = UNet_3D_Seg(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "UNet_3D_Seg"
-        print("Model UNet_3D_Seg")
-    elif config.which_model == 14:
-        net = Two_Level_Deeplab(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Deeplab"
-        print("Two_Level_Deeplab")
-    elif config.which_model == 15:
-        net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet_with_backbone"
-        print("Two_Level_Res_Unet_with_backbone")
-    elif config.which_model == 16:
-        net = smp.Unet(
-            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
-            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-            classes=1,                      # model output channels (number of classes in your dataset)
-        )
-        model_name = "smp_Unet"
-        print("smp.Unet")
-    elif config.which_model == 17:
-        net = smp.DeepLabV3Plus(
-            encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-            encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
-            in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-            classes=1,                      # model output channels (number of classes in your dataset)
-        )
-        model_name = "smp_DeepLabV3Plus"
-        print("smp_DeepLabV3Plus")
-    elif config.which_model == 18:
-        net = Unet_LSTM(1, len(frame_continue_num))
-        model_name = "Unet_LSTM"
-        print("Unet_LSTM")
-    elif config.which_model == -1:
-        net = _Temporal_Module(1, config.Unet_3D_channel)
-        model_name = "_Temporal_Module"
-        print("_Temporal_Module")
-    elif config.which_model == 0:
-        print("No assign which model!")
-    if config.pretrain_model != "":
-        net.load_state_dict(torch.load(config.pretrain_model))
-        print("pretrain model loaded!")
+    net, model_name = WHICH_MODEL(config, frame_continue_num)
     if config.data_parallel == 1:
         net = nn.DataParallel(net)
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
@@ -139,21 +61,21 @@ def main(config):
     OPTIMIZER = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr = LR)
     #scheduler = optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='max', factor=0.1, patience = 3)
     #scheduler = optim.lr_scheduler.StepLR(OPTIMIZER, step_size = 10, gamma = 0.3)
-    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[5, 15], gamma = 0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(OPTIMIZER, milestones=[21], gamma = 0.1)
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = IOUBCELoss(weight = train_weight)
         criterion_temporal = IOUBCELoss(weight = train_weight)
         logging.info("train weight = "+str(train_weight))
-        logging.info("criterion_single = IOUBCELoss(weight = train_weight)")
-        logging.info("criterion_temporal = IOUBCELoss(weight = train_weight)")
+        logging.info("criterion_single = "+str(criterion_single))
+        logging.info("criterion_temporal = "+str(criterion_temporal))
     elif config.loss_func == 1:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = DiceBCELoss(weight = train_weight)
-        criterion_temporal = nn.BCEWithLogitsLoss(pos_weight = train_weight)
+        criterion_temporal = DiceBCELoss(weight = train_weight)
         logging.info("train weight = "+str(train_weight))
-        logging.info("criterion_single = DiceBCELoss()")
-        logging.info("criterion_temporal = nn.BCEWithLogitsLoss()")
+        logging.info("criterion_single = "+str(criterion_single))
+        logging.info("criterion_temporal = "+str(criterion_temporal))
     if config.continuous == 0:
         logging.info("Single image version")
         train_loader = get_loader(image_path = config.train_data_path,
@@ -197,14 +119,14 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pretrain_model', type=str, default="")
+    parser.add_argument('--model_path', type=str, default="")
     parser.add_argument('--which_model', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=5)
     parser.add_argument('--epoch', type=int, default=50)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--save_model_path', type=str, default="./My_Image_Segmentation/models/")
     parser.add_argument('--best_score', type=float, default=0.7)
-    parser.add_argument('--threshold', type=float, default=0.7)
+    parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--train_data_path', type=str, default="Medical_data/train/")
     parser.add_argument('--valid_data_path', type=str, default="Medical_data/valid/")
     parser.add_argument('--test_data_path', type=str, default="Medical_data/test/")
@@ -217,5 +139,6 @@ if __name__ == "__main__":
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     parser.add_argument('--data_parallel', type=int, default=0)
     parser.add_argument('--random_train', type=int, default=0)
+    parser.add_argument('--w_T_LOSS', type=int, default=1)
     config = parser.parse_args()
     main(config)
