@@ -87,7 +87,7 @@ def read_predict_GT_mask(config):
                     temp_GT_2 = np.concatenate((temp_GT_2, GT), axis = 0)
         temp_output = np.concatenate((temp_output_0[1:,:,:], temp_output_1[1:,:,:], temp_output_2[1:,:,:]), axis = 0)
         temp_GT = np.concatenate((temp_GT_0[1:,:,:], temp_GT_1[1:,:,:], temp_GT_2[1:,:,:]), axis = 0)
-        file = open(model_name +"_"+config.model_path.split("/")[-1][:-3]+'_predict.pickle', 'wb')
+        file = open('feature.pickle', 'wb')
         pickle.dump(temp_output[:,:,:].flatten(), file)
         file.close()
         file = open('valid_GT.pickle', 'wb')
@@ -95,7 +95,7 @@ def read_predict_GT_mask(config):
         file.close()
 def plot_ROC_curve(config):
     with open('valid_GT.pickle', 'rb') as file:
-        with open(config.feature_model_path, 'rb') as file2:
+        with open('feature.pickle', 'rb') as file2:
             GT = pickle.load(file)
             predict = pickle.load(file2)
             fpr, tpr, _ = roc_curve(GT, predict)
@@ -115,7 +115,7 @@ def plot_ROC_curve(config):
     
 def plot_PR_curve(config):
     with open('valid_GT.pickle', 'rb') as file:
-        with open(config.feature_model_path, 'rb') as file2:
+        with open('feature.pickle', 'rb') as file2:
             GT = pickle.load(file)
             predict = pickle.load(file2)
             precision, recall, thresholds = precision_recall_curve(GT, predict)
@@ -135,7 +135,7 @@ def plot_F1_curve(config):
     f1_score = []
     iou_score = []
     with open('valid_GT.pickle', 'rb') as file:
-        with open(config.feature_model_path, 'rb') as file2:
+        with open('feature.pickle', 'rb') as file2:
             GT = pickle.load(file)
             predict = pickle.load(file2)
             for threshold in thresholds:
@@ -154,7 +154,7 @@ def plot_IOU_curve(config):
     thresholds = np.arange(0.05,1.0,0.05)
     iou_score = []
     with open('valid_GT.pickle', 'rb') as file:
-        with open(config.feature_model_path, 'rb') as file2:
+        with open('feature.pickle', 'rb') as file2:
             GT = pickle.load(file)
             predict = pickle.load(file2)
             for threshold in thresholds:
@@ -173,7 +173,7 @@ def plot_F2_curve(config):
     thresholds = np.arange(0.05,1.0,0.05)
     score = []
     with open('valid_GT.pickle', 'rb') as file:
-        with open(config.feature_model_path, 'rb') as file2:
+        with open('feature.pickle', 'rb') as file2:
             GT = pickle.load(file)
             predict = pickle.load(file2)
             for threshold in thresholds:
@@ -209,9 +209,8 @@ if __name__ == "__main__":
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--continuous', type=int, default=0)
-    parser.add_argument('--feature_model_path', type=str, default="")
     config = parser.parse_args()
-    # read_predict_GT_mask(config)
+    read_predict_GT_mask(config)
     # plot_ROC_curve(config)
     # plot_PR_curve(config)
     plot_F1_curve(config)

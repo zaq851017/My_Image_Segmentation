@@ -49,7 +49,7 @@ def postprocess_img(o_img, final_mask_exist, continue_list):
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
         index_sort = np.argsort(-stats[:,4])
         if index_sort.shape[0] > 2:
-            for ll in index_sort[2:]:
+            for ll in (index_sort[2:]):
                 labels[ labels == ll ] = 0
         if np.sum(labels) < 500:
             return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
@@ -188,10 +188,6 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
                 for j in range(temporal_mask.shape[1]):
                     temporal_res = temporal_mask[:,j:j+1,:,:].squeeze(dim = 1)
                     t_SR = (temporal_res).squeeze().cpu().data.numpy()
-                    #t_SR  = np.uint8(255 * t_SR)
-                    #t_SR = cv2.applyColorMap(t_SR, cv2.COLORMAP_JET)
-                    #import ipdb;ipdb.set_trace()
-                    #t_SR = torch.where(temporal_res > threshold, 1, 0).squeeze().cpu().data.numpy()
                     t_img_name = file_name[0].split("/")[-1].split(".")[0]+"_"+str(j)+".jpg"
                     cv2.imwrite(os.path.join(write_path+"/temporal_mask", t_img_name), t_SR*255)
             output = Sigmoid_func(output)
@@ -200,6 +196,7 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
             if postprocess == True:
                 SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+                SR = np.where(SR > 0.5, 1, 0)
             heatmap = np.uint8(110 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
             heat_img = heatmap*0.6+origin_crop_image
