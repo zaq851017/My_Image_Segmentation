@@ -130,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('--train_data_path', type=str, default="Medical_data/train/")
     parser.add_argument('--valid_data_path', type=str, default="Medical_data/valid/")
     parser.add_argument('--test_data_path', type=str, default="Medical_data/test/")
+    parser.add_argument('--backbone', type=str, default="resnet34")
     parser.add_argument('--augmentation_prob', type=float, default=0.0)
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_temporal', type=int, default=0)
