@@ -6,7 +6,8 @@ from network.Res_Unet import Single_Res_Unet
 from network.Nested_Unet import Single_Nested_Unet
 from network.DeepLab import DeepLab
 from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone, Unet_LSTM
+from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
+from network.UnetLSTM import *
 def WHICH_MODEL(config, frame_continue_num):
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
@@ -78,8 +79,24 @@ def WHICH_MODEL(config, frame_continue_num):
         model_name = "Two_Level_Res_Unet_with_backbone"
         print(model_name)
     elif config.which_model == 18:
-        net = Unet_LSTM(1, len(frame_continue_num))
-        model_name = "Unet_LSTM"
+        net = Unet_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "Unet_LSTM"+"_"+config.backbone
+        print(model_name)
+    elif config.which_model == 19:
+        net = UnetPlusPlus_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "UnetPlusPlus_LSTM"+"_"+config.backbone
+        print(model_name)
+    elif config.which_model == 20:
+        net = Linknet_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "Linknet_LSTM"+"_"+config.backbone
+        print(model_name)
+    elif config.which_model == 21:
+        net = PSPNet_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "PSPNet_LSTM"+"_"+config.backbone
+        print(model_name)
+    elif config.which_model == 22:
+        net = DeepLabV3Plus_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "DeepLabV3Plus_LSTM"+"_"+config.backbone
         print(model_name)
     elif config.which_model == -1:
         net = _Temporal_Module(1, config.Unet_3D_channel)
