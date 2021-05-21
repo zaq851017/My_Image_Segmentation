@@ -68,5 +68,7 @@ if __name__ == "__main__":
     parser.add_argument('--draw_temporal', type=int, default=0)
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
+    parser.add_argument('--w_T_LOSS', type=int, default=1)
+    parser.add_argument('--backbone', type=str, default="resnet34")
     config = parser.parse_args()
     main(config)

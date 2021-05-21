@@ -80,7 +80,7 @@ def WHICH_MODEL(config, frame_continue_num):
         print(model_name)
     elif config.which_model == 18:
         net = Unet_LSTM(1, len(frame_continue_num), config.backbone)
-        model_name = "Unet_LSTM"+"_"+config.backbone
+        model_name = "Unet_LSTM"+"_"+config.backbone+"_TLOSS="+str(config.w_T_LOSS)
         print(model_name)
     elif config.which_model == 19:
         net = UnetPlusPlus_LSTM(1, len(frame_continue_num), config.backbone)
