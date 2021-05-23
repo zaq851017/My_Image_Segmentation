@@ -1,12 +1,5 @@
 import segmentation_models_pytorch as smp
 import torch
-from network.Vgg_FCN8s import Single_vgg_FCN8s
-from network.Vgg_Unet import Single_vgg_Unet
-from network.Res_Unet import Single_Res_Unet
-from network.Nested_Unet import Single_Nested_Unet
-from network.DeepLab import DeepLab
-from network.Unet3D import UNet_3D_Seg
-from network.Two_Level_Net import Two_Level_Nested_Unet, Two_Level_Res_Unet, Two_Level_Deeplab, Two_Level_Res_Unet_with_backbone
 from network.UnetLSTM import *
 def WHICH_MODEL(config, frame_continue_num):
     if config.which_model == 1:
@@ -58,26 +51,6 @@ def WHICH_MODEL(config, frame_continue_num):
         )
         model_name = "smp_DeepLabV3Plus"+"_"+config.backbone
         print(model_name)
-    elif config.which_model == 11:
-        net = Two_Level_Res_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet"
-        print(model_name)
-    elif config.which_model == 12:
-        net = Two_Level_Nested_Unet(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Nested_Unet"
-        print(model_name)
-    elif config.which_model == 13:
-        net = UNet_3D_Seg(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "UNet_3D_Seg"
-        print(model_name)
-    elif config.which_model == 14:
-        net = Two_Level_Deeplab(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Deeplab"
-        print(model_name)
-    elif config.which_model == 15:
-        net = Two_Level_Res_Unet_with_backbone(1, config.Unet_3D_channel, len(frame_continue_num))
-        model_name = "Two_Level_Res_Unet_with_backbone"
-        print(model_name)
     elif config.which_model == 18:
         net = Unet_LSTM(1, len(frame_continue_num), config.backbone)
         model_name = "Unet_LSTM"+"_"+config.backbone+"_TLOSS="+str(config.w_T_LOSS)
@@ -97,6 +70,10 @@ def WHICH_MODEL(config, frame_continue_num):
     elif config.which_model == 22:
         net = DeepLabV3Plus_LSTM(1, len(frame_continue_num), config.backbone)
         model_name = "DeepLabV3Plus_LSTM"+"_"+config.backbone
+        print(model_name)
+    elif config.which_model == 23:
+        net = DeepLabV3_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "DeepLabV3_LSTM"+"_"+config.backbone
         print(model_name)
     elif config.which_model == -1:
         net = _Temporal_Module(1, config.Unet_3D_channel)
