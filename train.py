@@ -49,7 +49,9 @@ def main(config):
     if config.data_parallel == 1:
         net = nn.DataParallel(net)
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
-    log_name = os.path.join('My_Image_Segmentation', 'log', now_time+"_"+model_name+"_"+str(frame_continue_num)+".log")
+    if not os.path.isdir(config.save_log_path):
+        os.makedirs(config.save_log_path)
+    log_name = os.path.join(config.save_log_path, now_time+"_"+model_name+"_"+str(frame_continue_num)+".log")
     print("log_name ", log_name)
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
@@ -125,6 +127,7 @@ if __name__ == "__main__":
     parser.add_argument('--epoch', type=int, default=50)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--save_model_path', type=str, default="./My_Image_Segmentation/models/")
+    parser.add_argument('--save_log_path', type=str, default="./My_Image_Segmentation/log/")
     parser.add_argument('--best_score', type=float, default=0.7)
     parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--train_data_path', type=str, default="Medical_data/train/")

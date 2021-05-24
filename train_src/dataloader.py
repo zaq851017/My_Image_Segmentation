@@ -36,6 +36,36 @@ def test_preprocess_img(image):
     Norm_ = T.Normalize((0.486, 0.456, 0.406), (0.229, 0.224, 0.225))
     image = Norm_(image)
     return crop_origin_image, image
+def read_img_continuous(continuous_frame_num, temp_img_list ,img_dir_file, index):
+    list_num = []
+    frame_num = int(temp_img_list[index].split("/")[-1].split(".")[0][-3:])
+    for check_frame in continuous_frame_num:
+        if frame_num + check_frame < 0:
+            file_path = img_dir_file+"/frame" + "%03d" % 0 + ".jpg"
+        elif frame_num + check_frame > len(temp_img_list) - 1:
+            file_path = img_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + ".jpg"
+        else:
+            file_path = img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg"
+        if not os.path.isfile(file_path):
+            print(file_path +"is replaced")
+            file_path = img_dir_file+"/frame" + "%03d"% frame_num+".jpg"
+        list_num.append(file_path)
+    return frame_num, list_num
+def read_mask_continuous(continuous_frame_num, temp_mask_list, mask_dir_file, index):
+    list_num = []
+    frame_num = int(temp_mask_list[index].split("/")[-1].split(".")[0][5:8])
+    for check_frame in continuous_frame_num:
+        if frame_num + check_frame < 0:
+            mask_path = mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg"
+        elif frame_num + check_frame > len(temp_mask_list) - 1:
+            mask_path = mask_dir_file+"/frame"+ "%03d" % (len(temp_mask_list) - 1) + "_out.jpg"
+        else:
+            mask_path = mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg"
+        if not os.path.isfile(mask_path):
+            print(mask_path +"is replaced")
+            mask_path = mask_dir_file+ "/frame" + "%03d"% frame_num+"_out.jpg"
+        list_num.append(mask_path)
+    return frame_num, list_num
 class ImageFolder(data.Dataset):
     def __init__(self, root, prob, mode = 'train'):
         self.root = root
@@ -148,28 +178,11 @@ class Continuos_Image(data.Dataset):
                     total_img_num = []
                     total_mask_num = []
                     for i in range(len(temp_img_list)):
-                        list_num = []
-                        frame_num = int(temp_img_list[i].split("/")[-1].split(".")[0][-3:])
-                        for check_frame in self.continuous_frame_num:
-                            if frame_num + check_frame < 0:
-                                list_num.append(img_dir_file+"/frame" + "%03d" % 0 + ".jpg")
-                            elif frame_num + check_frame > len(temp_img_list) - 1:
-                                list_num.append(img_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + ".jpg")
-                            else:
-                                list_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
+                        frame_num, list_num = read_img_continuous(self.continuous_frame_num, temp_img_list, img_dir_file, i)
                         order_num = [img_dir_file+"/frame" + "%03d"% frame_num+".jpg"] + list_num
                         total_img_num.append(order_num)
-
                     for i in range(len(temp_mask_list)):
-                        list_num = []
-                        frame_num = int(temp_mask_list[i].split("/")[-1].split(".")[0][5:8])
-                        for check_frame in self.continuous_frame_num:
-                            if frame_num + check_frame < 0:
-                                list_num.append(mask_dir_file+"/frame" + "%03d" % 0 + "_out.jpg")
-                            elif frame_num + check_frame > len(temp_img_list) - 1:
-                                list_num.append(mask_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + "_out.jpg")
-                            else:
-                                list_num.append(mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg")
+                        frame_num, list_num = read_mask_continuous(self.continuous_frame_num, temp_mask_list, mask_dir_file, i)
                         order_num = [mask_dir_file+ "/frame" + "%03d"% frame_num+"_out.jpg"] + list_num
                         total_mask_num.append(order_num)
                     self.image_paths[img_dir_file] = total_img_num
@@ -192,15 +205,7 @@ class Continuos_Image(data.Dataset):
                     img_dir_file = "/".join(temp_img_list[0].split("/")[:-1])
                     total_img_num = []
                     for i in range(len(temp_img_list)):
-                        list_num = []
-                        frame_num = int(temp_img_list[i].split("/")[-1].split(".")[0][-3:])
-                        for check_frame in self.continuous_frame_num:
-                            if frame_num + check_frame < 0:
-                                list_num.append(img_dir_file+"/frame" + "%03d" % 0 + ".jpg")
-                            elif frame_num + check_frame > len(temp_img_list) - 1:
-                                list_num.append(img_dir_file+"/frame"+ "%03d" % (len(temp_img_list) - 1) + ".jpg")
-                            else:
-                                list_num.append(img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg")
+                        frame_num, list_num = read_img_continuous(self.continuous_frame_num, temp_img_list, img_dir_file, i) 
                         order_num = [img_dir_file+ "/frame" + "%03d"% frame_num+".jpg"] + list_num
                         total_img_num.append(order_num)
                     self.image_paths[img_dir_file] = total_img_num

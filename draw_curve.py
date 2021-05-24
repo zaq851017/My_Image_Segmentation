@@ -145,9 +145,9 @@ def plot_F1_curve(config):
                 f1_score.append(f1)
             fig = plt.figure()
             plt.plot(thresholds, f1_score, color = 'r')
-            index = f1_score.index(max(f1_score))
-            show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(f1_score), 2))+')'
-            plt.annotate(show_max,xy=(thresholds[index],max(f1_score)),xytext=(thresholds[index],max(f1_score)+0.001))
+            # index = f1_score.index(max(f1_score))
+            # show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(f1_score), 2))+')'
+            #plt.annotate(show_max,xy=(thresholds[index],max(f1_score)),xytext=(thresholds[index],max(f1_score)+0.001))
             plt.savefig('F1-score.png')
     print("F1 curve finished!")
 def plot_IOU_curve(config):
@@ -163,10 +163,13 @@ def plot_IOU_curve(config):
                 print('Threshold: %.2f IOU: %.4f' %(threshold, iou))
                 iou_score.append(iou)
             fig = plt.figure()
+            plt.title('IoU Curve')# give plot a title
+            plt.xlabel('Threshold')# make axis labels
+            plt.ylabel('IoU')
             plt.plot(thresholds, iou_score, color = 'r')
-            index = iou_score.index(max(iou_score))
-            show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(iou_score), 2))+')'
-            plt.annotate(show_max,xy=(thresholds[index],max(iou_score)),xytext=(thresholds[index],max(iou_score)+0.001))
+            #index = iou_score.index(max(iou_score))
+            #show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(iou_score), 2))+')'
+            #plt.annotate(show_max,xy=(thresholds[index],max(iou_score)),xytext=(thresholds[index],max(iou_score)+0.001))
             plt.savefig('IOU-score.png')
     print("IOU curve finished!")
 def plot_F2_curve(config):
@@ -187,8 +190,8 @@ def plot_F2_curve(config):
             plt.ylabel('F2 Score')
             plt.plot(thresholds, score, color = 'r')
             index = score.index(max(score))
-            show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(score), 2))+')'
-            plt.annotate(show_max,xy=(thresholds[index],max(score)),xytext=(thresholds[index],max(score)+0.001))
+            #show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(score), 2))+')'
+            #plt.annotate(show_max,xy=(thresholds[index],max(score)),xytext=(thresholds[index],max(score)+0.001))
             plt.savefig('F2-score.png')
     print("F2 curve finished!")
 if __name__ == "__main__":
@@ -209,9 +212,11 @@ if __name__ == "__main__":
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     parser.add_argument('--Unet_3D_channel', type=int, default=64)
     parser.add_argument('--continuous', type=int, default=0)
+    parser.add_argument('--backbone', type=str, default="resnet34")
+    parser.add_argument('--w_T_LOSS', type=int, default=1)
     config = parser.parse_args()
-    read_predict_GT_mask(config)
+    # read_predict_GT_mask(config)
     # plot_ROC_curve(config)
     # plot_PR_curve(config)
-    plot_F1_curve(config)
+    #plot_F1_curve(config)
     plot_IOU_curve(config)
