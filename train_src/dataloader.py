@@ -47,7 +47,6 @@ def read_img_continuous(continuous_frame_num, temp_img_list ,img_dir_file, index
         else:
             file_path = img_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ ".jpg"
         if not os.path.isfile(file_path):
-            print(file_path +"is replaced")
             file_path = img_dir_file+"/frame" + "%03d"% frame_num+".jpg"
         list_num.append(file_path)
     return frame_num, list_num
@@ -62,7 +61,6 @@ def read_mask_continuous(continuous_frame_num, temp_mask_list, mask_dir_file, in
         else:
             mask_path = mask_dir_file+ "/frame"+ "%03d" % (frame_num + check_frame)+ "_out.jpg"
         if not os.path.isfile(mask_path):
-            print(mask_path +"is replaced")
             mask_path = mask_dir_file+ "/frame" + "%03d"% frame_num+"_out.jpg"
         list_num.append(mask_path)
     return frame_num, list_num
