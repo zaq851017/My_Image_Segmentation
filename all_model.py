@@ -1,6 +1,7 @@
 import segmentation_models_pytorch as smp
 import torch
 from network.UnetLSTM import *
+from network.Vgg_FCN8s import Single_vgg_FCN8s
 def WHICH_MODEL(config, frame_continue_num):
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
