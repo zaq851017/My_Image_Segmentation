@@ -34,7 +34,7 @@ def main(config):
     torch.backends.cudnn.enabled = False
     with torch.no_grad():
         frame_continue_num = list(map(int, config.continue_num))
-        print(len(frame_continue_num))
+        print((frame_continue_num))
         if config.continuous == 0:
             test_loader = get_loader(image_path = config.input_path,
                                     batch_size = 1,
