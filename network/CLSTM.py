@@ -162,9 +162,9 @@ class BDCLSTM(nn.Module):
             previous_frame = torch.cat((previous_frame, previous_list[i].unsqueeze(dim = 1)), dim = 1)
         xforward = torch.cat( (previous_frame, current_frame.unsqueeze(dim = 1)), dim = 1)
         next_frame = torch.tensor([]).cuda()
-        for i in range(len(next_list)-1 , -1, -1):
+        for i in range(len(next_list)):
             next_frame = torch.cat((next_frame, next_list[i].unsqueeze(dim = 1)), dim = 1)
-        xreverse = torch.cat( (next_frame, current_frame.unsqueeze(dim = 1)), dim = 1)
+        xreverse = torch.cat( (current_frame.unsqueeze(dim = 1),  next_frame), dim = 1)
         # x1 = torch.unsqueeze(x1, dim=1)
         # x2 = torch.unsqueeze(x2, dim=1)
         # x3 = torch.unsqueeze(x3, dim=1)
