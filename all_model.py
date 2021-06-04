@@ -2,6 +2,7 @@ import segmentation_models_pytorch as smp
 import torch
 from network.UnetLSTM import *
 from network.Vgg_FCN8s import Single_vgg_FCN8s
+from network.Unet3D  import UNet_3D_Seg
 def WHICH_MODEL(config, frame_continue_num):
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
@@ -77,8 +78,8 @@ def WHICH_MODEL(config, frame_continue_num):
         model_name = "DeepLabV3_LSTM"+"_"+config.backbone
         print(model_name)
     elif config.which_model == -1:
-        net = _Temporal_Module(1, config.Unet_3D_channel)
-        model_name = "_Temporal_Module"
+        net = UNet_3D_Seg(1)
+        model_name = "3DUnet"
         print(model_name)
     elif config.which_model == 0:
         print("No assign which model!")

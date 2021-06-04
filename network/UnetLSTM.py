@@ -19,13 +19,12 @@ class Unet_LSTM(nn.Module):
         predict_pre = []
         predict_next = []
         temporal_mask = torch.tensor([]).cuda()
-        with torch.no_grad():
-            for i in range(int(self.len / 2)):
-                temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-                predict_pre.append(temp)
-            for i in range(int(self.len / 2+1), self.len):
-                temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-                predict_next.append(temp)
+        for i in range(int(self.len / 2)):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_pre.append(temp)
+        for i in range(int(self.len / 2+1), self.len):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_next.append(temp)
         predict_now = self.unet1(other_frame[:,self.len // 2:self.len // 2+1,:,:,:].squeeze(dim = 1))
         final_predict = self.lstm(predict_pre, predict_now, predict_next)
         for p_p in (predict_pre):
@@ -109,13 +108,12 @@ class DeepLabV3Plus_LSTM(nn.Module):
         predict_pre = []
         predict_next = []
         temporal_mask = torch.tensor([]).cuda()
-        with torch.no_grad():
-            for i in range(int(self.len / 2)):
-                temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-                predict_pre.append(temp)
-            for i in range(int(self.len / 2+1), self.len):
-                temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-                predict_next.append(temp)
+        for i in range(int(self.len / 2)):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_pre.append(temp)
+        for i in range(int(self.len / 2+1), self.len):
+            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
+            predict_next.append(temp)
         predict_now = self.unet1(other_frame[:,self.len // 2:self.len // 2+1,:,:,:].squeeze(dim = 1))
         final_predict = self.lstm(predict_pre, predict_now, predict_next)
         for p_p in (predict_pre):

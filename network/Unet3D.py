@@ -27,7 +27,7 @@ def conv_block_2_3d(in_dim, out_dim, activation):
         nn.BatchNorm3d(out_dim),)
 
 class UNet_3D(nn.Module):
-    def __init__(self, num_class, Unet_3D_channel = 64):
+    def __init__(self, num_class, Unet_3D_channel = 16):
         super(UNet_3D, self).__init__()
         warnings.filterwarnings('ignore')
         self.in_dim = 3
@@ -75,7 +75,7 @@ class UNet_3D(nn.Module):
         result = F.upsample(predict, other_frame.size()[2:])
         return result
 class UNet_3D_Seg(nn.Module):
-    def __init__(self, num_class, Unet_3D_channel = 64, continue_num = 8):
+    def __init__(self, num_class, Unet_3D_channel = 8, continue_num = 8):
         super(UNet_3D_Seg, self).__init__()
         warnings.filterwarnings('ignore')
         self.in_dim = 3
@@ -104,6 +104,7 @@ class UNet_3D_Seg(nn.Module):
         self.out2 = nn.Sequential(
         nn.Conv3d(1*model_size_num, 1, kernel_size=3, stride=1, padding=1),
         nn.BatchNorm3d(1))
+        self.OUT = nn.Conv2d(8, 1, kernel_size=1)
  
     def forward(self, input, other_frame):
         other_frame = other_frame.transpose(1, 2).contiguous()
@@ -124,4 +125,5 @@ class UNet_3D_Seg(nn.Module):
         concat_3 = torch.cat([trans_3, down1], dim=1)
         up_3 = self.up_3(concat_3)
         temporal_mask = self.out(up_3).squeeze(dim = 1)
-        return temporal_mask
+        output = self.OUT(temporal_mask)
+        return output

@@ -18,7 +18,7 @@ from datetime import datetime
 import warnings
 import logging
 ##net work
-from train_src.train_code import train_single, train_continuous
+from train_src.train_code import train_single, train_continuous, train_3D
 from train_src.dataloader import get_loader, get_continuous_loader
 from all_model import WHICH_MODEL
 import random
@@ -117,7 +117,10 @@ def main(config):
                                 shffule_yn = False,
                                 continue_num = frame_continue_num)
         logging.info("temporal frame: "+str(continue_num))
-        train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+        if config.which_model == -1:
+            train_3D(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
+        else:          
+            train_continuous(config, logging, net,model_name, threshold, best_score, criterion_single, criterion_temporal, OPTIMIZER,scheduler, train_loader, valid_loader, test_loader, BATCH_SIZE, EPOCH, LR, continue_num, now_time)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
