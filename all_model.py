@@ -36,13 +36,13 @@ def WHICH_MODEL(config, frame_continue_num):
         model_name = "smp_PSPNet"+"_"+config.backbone
         print(model_name)
     elif config.which_model == 5:
-        net = smp.MAnet(
+        net = smp.Linknet (
             encoder_name=config.backbone,        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
             encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
             in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
             classes=1,                      # model output channels (number of classes in your dataset)
         )
-        model_name = "smp_ MAnet"+"_"+config.backbone
+        model_name = "smp_Linknet "+"_"+config.backbone
         print(model_name)
     elif config.which_model == 6:
         net = smp.DeepLabV3Plus(
@@ -78,7 +78,7 @@ def WHICH_MODEL(config, frame_continue_num):
         model_name = "DeepLabV3_LSTM"+"_"+config.backbone
         print(model_name)
     elif config.which_model == -1:
-        net = UNet_3D_Seg(1)
+        net = UNet_3D_Seg(1, Unet_3D_channel = config.Unet_3D_channel, continue_num = len(frame_continue_num))
         model_name = "3DUnet"
         print(model_name)
     elif config.which_model == 0:

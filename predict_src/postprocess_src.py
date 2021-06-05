@@ -165,12 +165,17 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
-            elif config.continuous == 1:
+            elif config.continuous == 1 and config.which_model != -1:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
                 temporal_mask, output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
                 temporal_mask = Sigmoid_func(temporal_mask)
+            else:
+                pn_frame = image[:,1:,:,:,:]
+                frame = image[:,:1,:,:,:]
+                output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
             temp = [config.output_path] + file_name[0].split("/")[2:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]

@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--continuous', type=int, default=0)
     parser.add_argument('--draw_temporal', type=int, default=0)
     parser.add_argument('--draw_image_path', type=str, default="Medical_data/test_image_output/")
-    parser.add_argument('--Unet_3D_channel', type=int, default=64)
+    parser.add_argument('--Unet_3D_channel', type=int, default= 8)
     parser.add_argument('--loss_func', type=int, default=0)
     parser.add_argument('--continue_num', nargs="+", default=[1, 2, 3, 4, 5, 6, 7, 8])
     parser.add_argument('--data_parallel', type=int, default=0)

@@ -75,7 +75,7 @@ class UNet_3D(nn.Module):
         result = F.upsample(predict, other_frame.size()[2:])
         return result
 class UNet_3D_Seg(nn.Module):
-    def __init__(self, num_class, Unet_3D_channel = 8, continue_num = 8):
+    def __init__(self, num_class, Unet_3D_channel = 64, continue_num = 8):
         super(UNet_3D_Seg, self).__init__()
         warnings.filterwarnings('ignore')
         self.in_dim = 3
