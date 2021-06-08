@@ -165,7 +165,7 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
             if config.continuous == 0:
                 image = image.cuda()
                 output = net(image)
-            elif config.continuous == 1 and config.which_model != -1:
+            elif config.continuous == 1 and config.which_model != -1 and config.which_model != -2:
                 pn_frame = image[:,1:,:,:,:]
                 frame = image[:,:1,:,:,:]
                 temporal_mask, output = net(frame, pn_frame)

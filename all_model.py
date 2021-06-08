@@ -3,6 +3,7 @@ import torch
 from network.UnetLSTM import *
 from network.Vgg_FCN8s import Single_vgg_FCN8s
 from network.Unet3D  import UNet_3D_Seg
+from network.new_Unet3d import New_UNet3d
 def WHICH_MODEL(config, frame_continue_num):
     if config.which_model == 1:
         net = Single_vgg_FCN8s(1)
@@ -80,6 +81,10 @@ def WHICH_MODEL(config, frame_continue_num):
     elif config.which_model == -1:
         net = UNet_3D_Seg(1, Unet_3D_channel = config.Unet_3D_channel, continue_num = len(frame_continue_num))
         model_name = "3DUnet"
+        print(model_name)
+    elif config.which_model == -2:
+        net = New_UNet3d(in_dim = 3, out_dim = 1, num_filters = config.Unet_3D_channel)
+        model_name = "New_UNet3d"
         print(model_name)
     elif config.which_model == 0:
         print("No assign which model!")
