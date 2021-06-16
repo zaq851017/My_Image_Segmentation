@@ -45,7 +45,7 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
                     loss.backward()
                     OPTIMIZER.step()
                 train_Losser.add(loss.item())
-            if i % 1000 == 999:
+            if i % 250 == 0:
                 train_Scorer.add(SR, GT)
                 logging.info('Epoch[%d] Training[%d/%d] F1: %.4f, IOU : %.4f Loss: %.3f' %(epoch+1, i,len(train_loader) ,train_Scorer.f1(), train_Scorer.iou(), train_Losser.mean()))
         scheduler.step()
@@ -66,8 +66,8 @@ def train_single(config, logging, net, model_name, threshold, best_score, criter
             f1 = valid_Scorer.f1()
             iou = valid_Scorer.iou()
             logging.info('Epoch [%d] [Valid] F1: %.4f, IOU: %.4f, Loss: %.3f' %(epoch+1, f1, iou, valid_Losser.mean()))
-            if not os.path.isdir(config.save_model_path + now_time + model_name):
-                os.makedirs(config.save_model_path + now_time + model_name)
+            if not os.path.isdir(os.path.join(config.save_model_path, now_time+model_name)):
+                os.makedirs(os.path.join(config.save_model_path, now_time+model_name))
             if iou >= best_score or (epoch+1) % 5 == 0 or (epoch+1) <= 6:
                 best_score = iou
                 net_save_path = os.path.join(config.save_model_path, now_time+model_name)
