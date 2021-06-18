@@ -172,7 +172,46 @@ class BDCLSTM(nn.Module):
         # xreverse = torch.cat((x3, x2), dim=1)
         yforward = self.forward_net(xforward)
         yreverse = self.reverse_net(xreverse)
-        # assumes y is BatchSize x NumClasses x 240 x 240
+        
         ycat = torch.cat((yforward[-1], yreverse[-1]), dim=1)
         y = self.conv(ycat)
         return y
+
+class New_BDCLSTM(nn.Module):
+    # Constructor
+    def __init__(self, input_channels=64, hidden_channels=[64],
+                 kernel_size=5, bias=True, num_classes=1):
+
+        super(New_BDCLSTM, self).__init__()
+        self.forward_net = CLSTM(
+            input_channels, hidden_channels, kernel_size, bias)
+        self.conv1 = nn.Conv2d(
+            hidden_channels[-1], num_classes, kernel_size=1)
+        self.conv2 = nn.Conv2d(
+            hidden_channels[-1], num_classes, kernel_size=1)
+        self.conv3 = nn.Conv2d(
+            hidden_channels[-1], num_classes, kernel_size=1)
+        self.conv4 = nn.Conv2d(
+            hidden_channels[-1], num_classes, kernel_size=1)
+        self.conv5 = nn.Conv2d(
+            hidden_channels[-1], num_classes, kernel_size=1)
+        self.final_conv = nn.Conv2d(5, num_classes, kernel_size=1)
+    # Forward propogation
+    # x --> BatchSize x NumChannels x Height x Width
+    #       BatchSize x 64 x 240 x 240
+    def forward(self, previous_list, current_frame, next_list):
+        concanate_frame = torch.tensor([]).cuda()
+        for i in range(len(previous_list)):
+            concanate_frame = torch.cat((concanate_frame, previous_list[i].unsqueeze(dim = 1)), dim = 1)
+        concanate_frame= torch.cat( (concanate_frame, current_frame.unsqueeze(dim = 1)), dim = 1)
+        for i in range(len(next_list)):
+            concanate_frame = torch.cat((concanate_frame, next_list[i].unsqueeze(dim = 1)), dim = 1)
+        yforward = self.forward_net(concanate_frame)
+        y1 = self.conv1(yforward[0])
+        y2 = self.conv2(yforward[1])
+        y3 = self.conv3(yforward[2])
+        y4 = self.conv4(yforward[3])
+        y5 = self.conv5(yforward[4])
+        total_y = torch.cat((y1, y2, y3, y4, y5), dim = 1)
+        current_y = self.final_conv(total_y)
+        return current_y, total_y

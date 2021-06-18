@@ -231,6 +231,10 @@ def MERGE_VIDEO(config):
                     os.system("rm -r "+full_path_3)
                     full_path_3 = os.path.join(full_path, num_files+"/temporal_mask")
                     os.system("rm -r "+full_path_3)
+                    # full_path_3 = os.path.join(full_path, num_files+"/forfilm")
+                    # os.system("rm -r "+full_path_3)
+                    # full_path_3 = os.path.join(full_path, num_files+"/vol_mask")
+                    # os.system("rm -r "+full_path_3)
 def test_wo_postprocess(config, test_loader, net):
     if not os.path.isdir(config.output_path):
         print("os.makedirs "+ config.output_path)
