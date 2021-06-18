@@ -233,6 +233,7 @@ def MERGE_VIDEO(config):
                     os.system("rm -r "+full_path_3)
 def test_wo_postprocess(config, test_loader, net):
     if not os.path.isdir(config.output_path):
+        print("os.makedirs "+ config.output_path)
         os.makedirs(config.output_path)
     OUTPUT_IMG(config, test_loader, net, False)
     MERGE_VIDEO(config)
