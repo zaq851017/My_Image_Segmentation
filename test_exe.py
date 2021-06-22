@@ -16,7 +16,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import imageio
-import sys
 # Batch x NumChannels x Height x Width
 # UNET --> BatchSize x 1 (3?) x 240 x 240
 # BDCLSTM --> BatchSize x 64 x 240 x240
@@ -221,9 +220,9 @@ class New_DeepLabV3Plus_LSTM(nn.Module):
 
 
 def LISTDIR(path):
-    out = os.listdir(path)
-    out.sort()
-    return out
+    for f in os.listdir(path):
+        if not f.startswith('.'):
+            yield f
 
 def read_dir_path(path, dir_str):
     list_dir = []
@@ -400,6 +399,7 @@ def get_continuous_loader(image_path, batch_size, mode, augmentation_prob, shffu
     return data_loader, dataset.its_continue_num()
 
 if __name__ == "__main__":
+    print(os.getcwd())
     os.environ['KMP_DUPLICATE_LIB_OK']='True'
     seed = 1029
     random.seed(seed)
