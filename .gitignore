@@ -3,3 +3,8 @@
 *.pyc
 *.pyo
 *.pth
+*.spec
+*.jpg
+*.avi
+*.mp4
+build/
