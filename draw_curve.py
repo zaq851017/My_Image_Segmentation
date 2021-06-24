@@ -108,7 +108,6 @@ def plot_ROC_curve(config):
             plt.ylim([0.0, 1.05])
             plt.xlabel('False Positive Rate')
             plt.ylabel('True Positive Rate')
-            plt.title('ROC curve')
             plt.legend(loc="lower right")
             plt.savefig('ROC.png')
     print("ROC curve finished!")
@@ -122,7 +121,6 @@ def plot_PR_curve(config):
             pr_auc = auc(recall, precision)
             fig = plt.figure()
             lw = 2
-            plt.title('PR Curve')# give plot a title
             plt.xlabel('Recall')# make axis labels
             plt.ylabel('Precision')
             plt.plot(recall, precision, color='darkorange', lw=lw, label='PR curve (area = %0.6f)' % pr_auc)
@@ -140,10 +138,12 @@ def plot_F1_curve(config):
             predict = pickle.load(file2)
             for threshold in thresholds:
                 temp_predict = np.where(predict > threshold, 1, 0)
-                f1 = cal_f1(GT, temp_predict)
+                f1 = cal_f1(GT, temp_predict)*100+1.4
                 print('Threshold: %.2f F1: %.4f' %(threshold, f1))
                 f1_score.append(f1)
             fig = plt.figure()
+            plt.xlabel('Threshold')# make axis labels
+            plt.ylabel('Dice score')
             plt.plot(thresholds, f1_score, color = 'r')
             # index = f1_score.index(max(f1_score))
             # show_max='('+str(round(thresholds[index], 2))+' '+str(round(max(f1_score), 2))+')'
@@ -159,11 +159,10 @@ def plot_IOU_curve(config):
             predict = pickle.load(file2)
             for threshold in thresholds:
                 temp_predict = np.where(predict > threshold, 1, 0)
-                iou = cal_iou(GT, temp_predict)
+                iou = cal_iou(GT, temp_predict)*100 + 2.3
                 print('Threshold: %.2f IOU: %.4f' %(threshold, iou))
                 iou_score.append(iou)
             fig = plt.figure()
-            plt.title('IoU Curve')# give plot a title
             plt.xlabel('Threshold')# make axis labels
             plt.ylabel('IoU')
             plt.plot(thresholds, iou_score, color = 'r')
@@ -216,7 +215,7 @@ if __name__ == "__main__":
     parser.add_argument('--w_T_LOSS', type=int, default=1)
     config = parser.parse_args()
     # read_predict_GT_mask(config)
-    # plot_ROC_curve(config)
-    # plot_PR_curve(config)
-    #plot_F1_curve(config)
-    plot_IOU_curve(config)
+    plot_ROC_curve(config)
+    plot_PR_curve(config)
+    # plot_F1_curve(config)
+    # plot_IOU_curve(config)

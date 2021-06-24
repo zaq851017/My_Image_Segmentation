@@ -194,17 +194,12 @@ class New_DeepLabV3Plus_LSTM(nn.Module):
             classes=3,                      # model output channels (number of classes in your dataset)
         )
         self.len = continue_num
-        self.lstm = New_BDCLSTM(input_channels = 3, hidden_channels=[8])
+        self.lstm = New_BDCLSTM(length = continue_num, input_channels = 3, hidden_channels=[8])
     def forward(self, input, other_frame):
-        predict_pre = []
-        predict_next = []
         temporal_mask = torch.tensor([]).cuda()
-        for i in range(int(self.len / 2)):
+        continue_list = []
+        for i in range(self.len):
             temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            predict_pre.append(temp)
-        for i in range(int(self.len / 2+1), self.len):
-            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            predict_next.append(temp)
-        predict_now = self.unet1(other_frame[:,self.len // 2:self.len // 2+1,:,:,:].squeeze(dim = 1))
-        final_predict, temporal_mask = self.lstm(predict_pre, predict_now, predict_next)
+            continue_list.append(temp)
+        final_predict, temporal_mask = self.lstm(continue_list)
         return temporal_mask, final_predict
