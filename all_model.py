@@ -78,6 +78,10 @@ def WHICH_MODEL(config, frame_continue_num):
         net = New_DeepLabV3Plus_LSTM(1, len(frame_continue_num), config.backbone)
         model_name = "New_DeepLabV3Plus_LSTM"+"_"+config.backbone
         print(model_name)
+    elif config.which_model == -23:
+        net = Temp_New_DeepLabV3Plus_LSTM(1, len(frame_continue_num), config.backbone)
+        model_name = "Temp_New_DeepLabV3Plus_LSTM"+"_"+config.backbone
+        print(model_name)
     elif config.which_model == 23:
         net = DeepLabV3_LSTM(1, len(frame_continue_num), config.backbone)
         model_name = "DeepLabV3_LSTM"+"_"+config.backbone

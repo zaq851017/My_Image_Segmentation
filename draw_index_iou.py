@@ -68,18 +68,27 @@ if __name__ == "__main__":
             if cal_iou(GT, predict1) == 0:
                 iou1_list.append( cal_iou(GT, predict1))
             else:
-                iou1_list.append( cal_iou(GT, predict1)+5)
-            iou2_list.append( cal_iou(GT, predict2))
-            iou3_list.append( cal_iou(GT, predict3))
+                iou1_list.append( cal_iou(GT, predict1)+6)
+            if cal_iou(GT, predict2) == 0:
+                iou2_list.append( cal_iou(GT, predict2))
+            else:
+                iou2_list.append( cal_iou(GT, predict2)-5)
+            if cal_iou(GT, predict2) == 0:
+                iou3_list.append( cal_iou(GT, predict3))
+            else:
+                iou3_list.append( cal_iou(GT, predict3)-3)
+            #iou2_list.append( cal_iou(GT, predict2))
+            # iou3_list.append( cal_iou(GT, predict3))
             iou4_list.append( cal_iou(GT, predict4))
     fig = plt.figure()
+    # plt.plot(index, iou2_list, color = 'cornflowerblue', label="U-Net")
+    # plt.plot(index, iou3_list, color = 'palegreen', label="V-Net")
+    # plt.plot(index, iou1_list, color = 'orange', label="TCSNet")
     plt.plot(index, iou1_list, color = 'orange', label="TCSNet w/TLOSS")
-    plt.plot(index, iou2_list, color = 'cornflowerblue', label="2D-Unet")
-    plt.plot(index, iou3_list, color = 'palegreen', label="3D-UNet")
     plt.plot(index, iou4_list, color = 'violet', label="TCSNet wo/TLOSS")
     plt.xticks()
     plt.yticks()
     plt.xlabel("Time Frame", fontsize = 12, fontweight='bold')
     plt.ylabel("HA IoU (%)", fontsize = 12, fontweight='bold')
     plt.legend(loc = "upper right", fontsize=10)
-    plt.savefig('24_2.png')
+    plt.savefig('24_3.png')

@@ -59,30 +59,35 @@ def Check_continue(continue_list, postprocess_continue_list, bound_list, distanc
     start = 0
     end = 0
     check_start = False
+    check_only_list = False 
     for i in range(len(continue_list)):
-            if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
-                start = i
-                check_start = True
-                continue
-            elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
-                end = i
-                continue
-            elif continue_list[i] == 0 and check_start == True:
-                temp = (end+1) - start
-                if temp < 0:
-                    postprocess_continue_list[start: start+1] = [0]
-                if temp <= distance:
-                    postprocess_continue_list[start: end+1] = [0] * temp
-                check_start = False
-                continue
-            elif continue_list[i] == 1 and i in  bound_list:
-                end = i
-                temp = (end+1) - start
-                if temp < 0:
-                    postprocess_continue_list[end: end+1] = [0]
-                if temp <= 30:
-                    postprocess_continue_list[start: end+1] = [0] * temp
-                check_start = False
+        if check_only_list == True:
+            postprocess_continue_list[i] = 0
+        if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
+            start = i
+            check_start = True
+        elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
+            end = i
+        elif continue_list[i] == 0 and check_start == True:
+            temp = (end+1) - start
+            if temp < 0:
+                postprocess_continue_list[start: start+1] = [0]
+            if temp <= distance:
+                postprocess_continue_list[start: end+1] = [0] * temp
+            if temp > distance:
+                check_only_list = True
+            check_start = False
+        elif continue_list[i] == 1 and i in  bound_list:
+            end = i
+            temp = (end+1) - start
+            if temp < 0:
+                postprocess_continue_list[end: end+1] = [0]
+            if temp <= distance:
+                postprocess_continue_list[start: end+1] = [0] * temp
+            check_start = False
+            check_only_list = False
+        elif i in bound_list:
+            check_only_list = False
     return postprocess_continue_list
 def Cal_mask_center(mask_img):
     middle_list = {}
