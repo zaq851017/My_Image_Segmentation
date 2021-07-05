@@ -189,7 +189,8 @@ class New_BDCLSTM(nn.Module):
         self.conv = []
         for i in range(self.len):
             self.conv.append(nn.Conv2d(hidden_channels[-1], num_classes, kernel_size=1).cuda())
-        self.final_conv = nn.Conv2d(self.len, num_classes, kernel_size=1)
+        # self.final_conv = nn.Conv2d(self.len, num_classes, kernel_size=1)
+        self.final_conv = nn.Conv3d(self.len, num_classes, kernel_size=1)
     def forward(self, continue_list):
         F_concanate_frame = torch.tensor([]).cuda()
         for i in range(len(continue_list)):
@@ -199,7 +200,8 @@ class New_BDCLSTM(nn.Module):
         for i in range(self.len):
             F_y = self.conv[i](yforward[i])
             total_y = torch.cat( (total_y, F_y), dim = 1)
-        current_y = self.final_conv(total_y)
+        # current_y = self.final_conv(total_y)
+        current_y = self.final_conv(total_y.unsqueeze(dim = 2)).squeeze(dim = 1)
         return current_y, total_y
 
 

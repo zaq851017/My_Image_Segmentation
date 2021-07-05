@@ -105,6 +105,7 @@ class UNet_3D_Seg(nn.Module):
         nn.Conv3d(1*model_size_num, 1, kernel_size=3, stride=1, padding=1),
         nn.BatchNorm3d(1))
         self.OUT = nn.Conv2d(8, 1, kernel_size=1)
+        #self.OUT = nn.Conv3d(8, 1, kernel_size=1)
  
     def forward(self, input, other_frame):
         other_frame = other_frame.transpose(1, 2).contiguous()
@@ -125,5 +126,6 @@ class UNet_3D_Seg(nn.Module):
         concat_3 = torch.cat([trans_3, down1], dim=1)
         up_3 = self.up_3(concat_3)
         temporal_mask = self.out(up_3).squeeze(dim = 1)
+        import ipdb; ipdb.set_trace()
         output = self.OUT(temporal_mask)
         return output
