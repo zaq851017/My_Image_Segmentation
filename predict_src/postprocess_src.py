@@ -137,7 +137,7 @@ def Cal_Local_Global_mean(middle_list, interval_num = 5):
         global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
         mean_list[key] = temp_list
     return mean_list, global_mean_list
-def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num = 5, distance = 75):
+def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num = 5, distance = 50):
     final_mask_exist = []
     for key in middle_list:
         len_check_list = []
@@ -181,7 +181,7 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
                 frame = image[:,:1,:,:,:]
                 output = net(frame, pn_frame)
                 output = output.squeeze(dim = 1)
-            temp = [config.output_path] + file_name[0].split("/")[2:-2]
+            temp = [config.output_path] + file_name[0].split("/")[-4:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
             if not os.path.isdir(write_path+"/original"):
@@ -251,7 +251,6 @@ def test_w_postprocess(config, test_loader, net):
     if not os.path.isdir(config.output_path):
         os.makedirs(config.output_path)
     with torch.no_grad():
-        distance = 75
         Sigmoid_func = nn.Sigmoid()
         threshold = config.threshold
         temp_mask_exist, temp_continue_list = [1] * len(test_loader), [1] * len(test_loader)

@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import imageio
+import copy
 # Batch x NumChannels x Height x Width
 # UNET --> BatchSize x 1 (3?) x 240 x 240
 # BDCLSTM --> BatchSize x 64 x 240 x240
@@ -155,41 +156,29 @@ class CLSTM(nn.Module):
 
 class New_BDCLSTM(nn.Module):
     # Constructor
-    def __init__(self, input_channels=64, hidden_channels=[64],
+    def __init__(self, length, input_channels=64, hidden_channels=[64],
                  kernel_size=5, bias=True, num_classes=1):
 
         super(New_BDCLSTM, self).__init__()
+        self.len = length
         self.forward_net = CLSTM(
             input_channels, hidden_channels, kernel_size, bias)
-        self.conv1 = nn.Conv2d(
-            hidden_channels[-1], num_classes, kernel_size=1)
-        self.conv2 = nn.Conv2d(
-            hidden_channels[-1], num_classes, kernel_size=1)
-        self.conv3 = nn.Conv2d(
-            hidden_channels[-1], num_classes, kernel_size=1)
-        self.conv4 = nn.Conv2d(
-            hidden_channels[-1], num_classes, kernel_size=1)
-        self.conv5 = nn.Conv2d(
-            hidden_channels[-1], num_classes, kernel_size=1)
-        self.final_conv = nn.Conv2d(5, num_classes, kernel_size=1)
-    # Forward propogation
-    # x --> BatchSize x NumChannels x Height x Width
-    #       BatchSize x 64 x 240 x 240
-    def forward(self, previous_list, current_frame, next_list):
-        concanate_frame = torch.tensor([]).to(device)
-        for i in range(len(previous_list)):
-            concanate_frame = torch.cat((concanate_frame, previous_list[i].unsqueeze(dim = 1)), dim = 1)
-        concanate_frame= torch.cat( (concanate_frame, current_frame.unsqueeze(dim = 1)), dim = 1)
-        for i in range(len(next_list)):
-            concanate_frame = torch.cat((concanate_frame, next_list[i].unsqueeze(dim = 1)), dim = 1)
-        yforward = self.forward_net(concanate_frame)
-        y1 = self.conv1(yforward[0])
-        y2 = self.conv2(yforward[1])
-        y3 = self.conv3(yforward[2])
-        y4 = self.conv4(yforward[3])
-        y5 = self.conv5(yforward[4])
-        total_y = torch.cat((y1, y2, y3, y4, y5), dim = 1)
-        current_y = self.final_conv(total_y)
+        self.conv = []
+        for i in range(self.len):
+            self.conv.append(nn.Conv2d(hidden_channels[-1], num_classes, kernel_size=1).cuda())
+        # self.final_conv = nn.Conv2d(self.len, num_classes, kernel_size=1)
+        self.final_conv = nn.Conv3d(self.len, num_classes, kernel_size=1)
+    def forward(self, continue_list):
+        F_concanate_frame = torch.tensor([]).cuda()
+        for i in range(len(continue_list)):
+            F_concanate_frame = torch.cat((F_concanate_frame, continue_list[i].unsqueeze(dim = 1)), dim = 1)
+        yforward = self.forward_net(F_concanate_frame)
+        total_y = torch.tensor([]).cuda()
+        for i in range(self.len):
+            F_y = self.conv[i](yforward[i])
+            total_y = torch.cat( (total_y, F_y), dim = 1)
+        # current_y = self.final_conv(total_y)
+        current_y = self.final_conv(total_y.unsqueeze(dim = 2)).squeeze(dim = 1)
         return current_y, total_y
 
 
@@ -203,21 +192,132 @@ class New_DeepLabV3Plus_LSTM(nn.Module):
             classes=3,                      # model output channels (number of classes in your dataset)
         )
         self.len = continue_num
-        self.lstm = New_BDCLSTM(input_channels = 3, hidden_channels=[8])
+        self.lstm = New_BDCLSTM(length = continue_num, input_channels = 3, hidden_channels=[8])
     def forward(self, input, other_frame):
-        predict_pre = []
-        predict_next = []
-        temporal_mask = torch.tensor([]).to(device)
-        for i in range(int(self.len / 2)):
+        temporal_mask = torch.tensor([]).cuda()
+        continue_list = []
+        for i in range(self.len):
             temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            predict_pre.append(temp)
-        for i in range(int(self.len / 2+1), self.len):
-            temp = self.unet1(other_frame[:,i:i+1,:,:,:].squeeze(dim = 1))
-            predict_next.append(temp)
-        predict_now = self.unet1(other_frame[:,self.len // 2:self.len // 2+1,:,:,:].squeeze(dim = 1))
-        final_predict, temporal_mask = self.lstm(predict_pre, predict_now, predict_next)
+            continue_list.append(temp)
+        final_predict, temporal_mask = self.lstm(continue_list)
         return temporal_mask, final_predict
 
+def postprocess_img(o_img, final_mask_exist, continue_list):
+    int8_o_img = np.array(o_img, dtype=np.uint8)
+    if np.sum(int8_o_img) < 500 or final_mask_exist == 0 or continue_list == 0:
+        return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
+    else:
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(int8_o_img, connectivity=8)
+        index_sort = np.argsort(-stats[:,4])
+        if index_sort.shape[0] > 2:
+            for ll in (index_sort[2:]):
+                labels[ labels == ll ] = 0
+        if np.sum(labels) < 500:
+            return np.zeros((o_img.shape[0],o_img.shape[1]), dtype = np.uint8)
+        else:
+            return np.array(labels, dtype=np.uint8)
+def Check_continue(continue_list, postprocess_continue_list, bound_list, distance):
+    start = 0
+    end = 0
+    check_start = False
+    check_only_list = False 
+    for i in range(len(continue_list)):
+        if check_only_list == True:
+            postprocess_continue_list[i] = 0
+        if continue_list[i] == 1 and check_start == False and i < len(continue_list)-1:
+            start = i
+            check_start = True
+        elif continue_list[i] == 1 and check_start == True and i < len(continue_list)-1 and i not in bound_list:
+            end = i
+        elif continue_list[i] == 0 and check_start == True:
+            temp = (end+1) - start
+            if temp < 0:
+                postprocess_continue_list[start: start+1] = [0]
+            if temp <= distance:
+                postprocess_continue_list[start: end+1] = [0] * temp
+            if temp > distance:
+                check_only_list = True
+            check_start = False
+        elif continue_list[i] == 1 and i in  bound_list:
+            end = i
+            temp = (end+1) - start
+            if temp < 0:
+                postprocess_continue_list[end: end+1] = [0]
+            if temp <= distance:
+                postprocess_continue_list[start: end+1] = [0] * temp
+            check_start = False
+            check_only_list = False
+        elif i in bound_list:
+            check_only_list = False
+    return postprocess_continue_list
+def Cal_mask_center(mask_img):
+    middle_list = {}
+    for key in mask_img:
+        middle_list[key] = []
+        for img_index in range(len(mask_img[key])):
+            img = mask_img[key][img_index]
+            if np.sum(img) != 0:
+                mean_x = np.mean(img.nonzero()[0])
+                mean_y = np.mean(img.nonzero()[1])
+            else:
+                mean_x = 0
+                mean_y = 0
+            middle_list[key].append([mean_x, mean_y])
+    return middle_list
+def Cal_Local_Global_mean(middle_list, interval_num = 5):
+    mean_list = {}
+    global_mean_list = {}
+    for key in middle_list:
+        temp_total = [0] * interval_num
+        temp_x = [0] * interval_num
+        temp_y = [0] * interval_num
+        temp_global_x = 0
+        temp_global_y = 0
+        temp_global_total = 0
+        len_check_list = []
+        for i in range(1,interval_num+1):
+            len_check_list.append([(i-1), (i-1)*len(middle_list[key])/interval_num, i*len(middle_list[key])/interval_num ])
+        for i, (x,y) in enumerate(middle_list[key]):
+            if x!=0 and y != 0:
+                temp_global_x += x
+                temp_global_y += y
+                temp_global_total += 1
+                for j in range(len(len_check_list)):
+                    if i >= len_check_list[j][1] and i< len_check_list[j][2]:
+                        temp_x[len_check_list[j][0]] += x
+                        temp_y[len_check_list[j][0]] += y
+                        temp_total[len_check_list[j][0]] += 1
+        if temp_global_total == 0:
+            temp_global_total += 1
+        for check_temp in range(len(temp_total)):
+            if temp_total[check_temp] == 0:
+                temp_total[check_temp] +=1
+        temp_list = []
+        for temp in range(len(temp_total)):
+            temp_list.append([ temp_x[temp]/temp_total[temp], temp_y[temp]/temp_total[temp]])
+        global_mean_list[key] = [temp_global_x/ temp_global_total, temp_global_y/ temp_global_total]
+        mean_list[key] = temp_list
+    return mean_list, global_mean_list
+
+def Final_postprocess(middle_list, mean_list, global_mean_list, interval_num , distance ):
+    final_mask_exist = []
+    for key in middle_list:
+        len_check_list = []
+        for i in range(1,interval_num+1):
+            len_check_list.append([(i-1), (i-1)*len(middle_list[key])/interval_num, i*len(middle_list[key])/interval_num ])
+        for i, (x, y) in enumerate(middle_list[key]):
+            if x == 0 and y == 0:
+                final_mask_exist.append(0)
+            else:
+                for j in range(len(len_check_list)):
+                    if i >= len_check_list[j][1] and i< len_check_list[j][2]:
+                        abs_x = min(abs(x-global_mean_list[key][0]),abs(x - mean_list[key][len_check_list[j][0]][0]))
+                        abs_y = min(abs(y-global_mean_list[key][1]), abs(y - mean_list[key][len_check_list[j][0]][1]))
+                        if abs_x >= distance or abs_y >= distance:
+                            final_mask_exist.append(0)
+                        else:
+                            final_mask_exist.append(1)
+    return final_mask_exist
 
 def LISTDIR(path):
     for f in os.listdir(path):
@@ -239,6 +339,48 @@ def test_wo_postprocess(config, test_loader, net):
         os.makedirs(config.output_path)
     OUTPUT_IMG(config, test_loader, net, False)
     MERGE_VIDEO(config)
+def test_w_postprocess(config, test_loader, net):
+    net.eval()
+    if not os.path.isdir(config.output_path):
+        os.makedirs(config.output_path)
+    with torch.no_grad():
+        Sigmoid_func = nn.Sigmoid()
+        threshold = 0.2
+        temp_mask_exist, temp_continue_list = [1] * len(test_loader), [1] * len(test_loader)
+        mask_img, continue_list, bound_list = {}, [], []
+        last_signal, start, end, last_film_name = 0, 0, -1, ""
+        for i, (crop_image ,file_name, image) in enumerate(tqdm(test_loader)):
+            if config.continuous == 0:
+                image = image.cuda()
+                output = net(image)
+            elif config.continuous == 1:
+                pn_frame = image[:,1:,:,:,:]
+                frame = image[:,:1,:,:,:]
+                temporal_mask, output = net(frame, pn_frame)
+                output = output.squeeze(dim = 1)
+            output = Sigmoid_func(output)
+            SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            SR = postprocess_img(SR, temp_mask_exist[i], temp_continue_list[1])
+            if np.sum(SR != 0) == 0:
+                continue_list.append(0)
+            else:
+                continue_list.append(1)
+            dict_path = file_name[0].split("/")[-3]
+            if dict_path not in mask_img:
+                if i != 0:
+                    bound_list.append(i-1)
+                mask_img[dict_path] = []
+                mask_img[dict_path].append(SR)
+            else:
+                mask_img[dict_path].append(SR)
+        bound_list.append(i)
+        postprocess_continue_list = copy.deepcopy(continue_list)
+        postprocess_continue_list = Check_continue(continue_list, postprocess_continue_list, bound_list, distance = 30)
+        middle_list = Cal_mask_center(mask_img)
+        mean_list, global_mean_list = Cal_Local_Global_mean(middle_list, config.interval_num)
+        final_mask_exist = Final_postprocess(middle_list, mean_list, global_mean_list, config.interval_num, config.distance)
+        OUTPUT_IMG(config, test_loader, net, True, final_mask_exist, postprocess_continue_list)
+        MERGE_VIDEO(config)
 def frame2video(path):
     video_path = (path[:-6])
     videoWriter = cv2.VideoWriter(os.path.join(video_path,"merge_video.mp4"), cv2.VideoWriter_fourcc(*'MP4V'), 12.0, (832, 352))
@@ -273,7 +415,7 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
             temporal_mask, output = net(frame, pn_frame)
             output = output.squeeze(dim = 1)
             temporal_mask = Sigmoid_func(temporal_mask)
-            temp = [config.output_path] + file_name[0].split("/")[1:-2]
+            temp = [config.output_path] + file_name[0].split("/")[-4:-2]
             write_path = "/".join(temp)
             img_name = file_name[0].split("/")[-1]
             if not os.path.isdir(write_path+"/original"):
@@ -288,6 +430,9 @@ def OUTPUT_IMG(config, test_loader, net, postprocess = False, final_mask_exist =
             crop_image = crop_image.squeeze().data.numpy()
             origin_crop_image = crop_image.copy()
             SR = torch.where(output > threshold, 1, 0).squeeze().cpu().data.numpy()
+            if postprocess == True:
+                SR = postprocess_img(SR, final_mask_exist[i], postprocess_continue_list[i])
+                SR = np.where(SR > 0.5, 1, 0)
             heatmap = np.uint8(110 * SR)
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT)
             heat_img = heatmap*0.6+origin_crop_image
@@ -316,8 +461,6 @@ def MERGE_VIDEO(config):
                     full_path_3 = os.path.join(full_path, num_files+"/original")
                     os.system("rm -r "+full_path_3)
                     full_path_3 = os.path.join(full_path, num_files+"/vol_mask")
-                    os.system("rm -r "+full_path_3)
-                    full_path_3 = os.path.join(full_path, num_files+"/temporal_mask")
                     os.system("rm -r "+full_path_3)
                     full_path_3 = os.path.join(full_path, num_files+"/forfilm")
                     os.system("rm -r "+full_path_3)
@@ -418,6 +561,8 @@ if __name__ == "__main__":
     parser.add_argument('--output_path', type=str, default="output_prediction")
     parser.add_argument('--keep_image', type= int, default=0)
     parser.add_argument('--continuous', type=int, default=1)
+    parser.add_argument('--distance', type=int, default=50)
+    parser.add_argument('--interval_num', type=int, default=5)
     config = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for num_file in LISTDIR(config.video_path):
@@ -457,7 +602,7 @@ if __name__ == "__main__":
         img.save(files)
     print("image croped finished!")
     with torch.no_grad():
-        frame_continue_num = [-3, -2, -1, 0, 1, 2, 3]
+        frame_continue_num = [-6, -3, 0, 3, 6]
         test_loader, continue_num = get_continuous_loader(image_path = config.output_img_path,
                                     batch_size = 1,
                                     mode = 'test',
@@ -469,6 +614,5 @@ if __name__ == "__main__":
         net.load_state_dict(torch.load("model.pt", map_location='cpu'))
         net = net.to(device)
         print("pretrain model loaded!")
-        test_wo_postprocess(config, test_loader, net)
-    
+        test_w_postprocess(config, test_loader, net)
     
