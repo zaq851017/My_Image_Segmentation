@@ -92,3 +92,27 @@ class IOUBCELoss(nn.Module):
         IoU = (intersection + smooth)/(union + smooth)
         IoU_loss = 1 - IoU
         return IoU_loss + BCE
+
+class Temporal_Loss(nn.Module):
+    def __init__(self, size_average=True, weight=None, gamma = 1.0, distance = None):
+        super(Temporal_Loss, self).__init__()
+        self.BCE_loss = nn.BCEWithLogitsLoss(pos_weight = weight)
+        self.gamma = gamma
+        self.distance_list = distance
+        self.max_rho = max(distance)
+    def forward(self, inputs, targets, smooth=1):
+        total_loss = 0.0
+        for i in range(len(self.distance_list)):
+            BCE = self.BCE_loss(inputs[:,i:i+1,:,:].float().contiguous(), targets[:,i:i+1,:,:].float().contiguous())
+            flat_inputs = F.sigmoid(inputs[:,i:i+1,:,:].contiguous())
+            flat_inputs = flat_inputs.view(-1)
+            flat_targets = targets[:,i:i+1,:,:].contiguous().view(-1) 
+            intersection = (flat_inputs * flat_targets).sum()
+            total = (flat_inputs + flat_targets).sum()
+            union = total - intersection
+            IoU = (intersection + smooth)/(union + smooth)
+            IoU_loss = 1 - IoU
+            weight = 1- ( abs(self.distance_list[i]) / (2*self.max_rho) )
+            weight = weight ** self.gamma
+            total_loss += weight*(BCE  + IoU_loss)
+        return total_loss

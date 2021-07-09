@@ -23,7 +23,7 @@ from train_src.dataloader import get_loader, get_continuous_loader
 from all_model import WHICH_MODEL
 import random
 ## loss
-from train_src.loss_func import DiceBCELoss, IOUBCELoss
+from train_src.loss_func import DiceBCELoss, IOUBCELoss, Temporal_Loss
   
 def main(config):
     warnings.filterwarnings('ignore')
@@ -51,7 +51,7 @@ def main(config):
     now_time = datetime.now().strftime("%Y_%m_%d_%I:%M:%S_")
     if not os.path.isdir(config.save_log_path):
         os.makedirs(config.save_log_path)
-    log_name = os.path.join(config.save_log_path, now_time+"_"+model_name+"_"+str(frame_continue_num)+".log")
+    log_name = os.path.join(config.save_log_path, now_time+"_"+model_name+"_"+str(frame_continue_num)+"_gamma="+str(config.gamma)+".log")
     print("log_name ", log_name)
     logging.basicConfig(level=logging.DEBUG,
                         handlers = [logging.FileHandler(log_name, 'w', 'utf-8'),logging.StreamHandler()])
@@ -67,7 +67,7 @@ def main(config):
     if config.loss_func == 0:
         train_weight = torch.FloatTensor([10 / 1]).cuda()
         criterion_single = IOUBCELoss(weight = train_weight)
-        criterion_temporal = IOUBCELoss(weight = train_weight)
+        criterion_temporal = Temporal_Loss(weight = train_weight, gamma = config.gamma, distance = frame_continue_num)
         logging.info("train weight = "+str(train_weight))
         logging.info("criterion_single = "+str(criterion_single))
         logging.info("criterion_temporal = "+str(criterion_temporal))
@@ -147,5 +147,6 @@ if __name__ == "__main__":
     parser.add_argument('--data_parallel', type=int, default=0)
     parser.add_argument('--random_train', type=int, default=0)
     parser.add_argument('--w_T_LOSS', type=int, default=1)
+    parser.add_argument('--gamma', type=float, default=1.0)
     config = parser.parse_args()
     main(config)
